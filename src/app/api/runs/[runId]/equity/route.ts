@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { projectCost } from "@/server/costProjection";
+import { computeEquity } from "@/server/equity";
 
 export async function GET(
   _req: NextRequest,
@@ -7,11 +7,11 @@ export async function GET(
 ) {
   const { runId } = await params;
   try {
-    const band = await projectCost(runId);
-    return NextResponse.json(band);
+    const report = await computeEquity(runId);
+    return NextResponse.json(report);
   } catch (e: unknown) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "projection failed" },
+      { error: e instanceof Error ? e.message : "equity failed" },
       { status: 400 },
     );
   }

@@ -10,6 +10,7 @@ const Body = z.object({
   costCap: z.number().nonnegative().optional(),
   label: z.string().optional(),
   fidelity: z.enum(["cheap", "balanced", "high_fidelity"]).optional(),
+  narrationVerbosity: z.enum(["terse", "narrative", "cinematic"]).optional(),
 });
 
 export async function POST(req: NextRequest) {

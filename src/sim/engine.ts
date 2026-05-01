@@ -13,6 +13,22 @@ import { generateReflection, shouldReflect } from "./reflection";
 import { arbitrate } from "./gameMaster";
 import { updateRelationships } from "./relationships";
 import { detectCommunities } from "./emergence/communityDetection";
+import {
+  detectPhaseTransition,
+  emptyPhaseState,
+  type PhaseTransitionState,
+} from "./emergence/phaseTransition";
+import {
+  detectIntentionsKmeans,
+  emptyIntentionsState,
+  type IntentionsState,
+} from "./emergence/intentionsKmeans";
+import {
+  detectCascade,
+  emptyCascadeState,
+  setCascadeSeed,
+  type CascadeState,
+} from "./emergence/percolation";
 import { snapshot } from "./snapshot";
 import { recordCost, exceededCap } from "./cost";
 import { publish } from "./runners/eventBus";
@@ -47,11 +63,38 @@ export async function runRunLoop(
 
   const ctx = await hydrateContext(runId, options);
 
+  // Detector states (kept across ticks within a single loop invocation).
+  const phaseState: PhaseTransitionState = emptyPhaseState();
+  const intentionsState: IntentionsState = emptyIntentionsState();
+  const cascadeState: CascadeState = emptyCascadeState();
+  // Track per-agent recent action share for the intentions detector.
+  const actionShareWindow = new Map<string, number[][]>(); // agentId -> rolling 5-vec
+  const ACTION_KINDS = ["move", "speak", "wait", "act", "vote"] as const;
+  const verbosity = (run.narrationVerbosity as "terse" | "narrative" | "cinematic") ?? "terse";
+
   for (let tick = run.currentTick; tick < run.totalTicks; tick++) {
     if (options.abortSignal?.aborted) break;
     ctx.tick = tick;
 
     await applyScheduledEvents(run.simulationId, ctx);
+
+    // If any pendingObservation was just injected (from a rule), seed the
+    // cascade detector with the most-recent observation text.
+    for (const [, texts] of ctx.pendingObservations) {
+      const t = texts[texts.length - 1];
+      if (t && !cascadeState.seedEmbedding) {
+        setCascadeSeed(cascadeState, t, tick);
+        await prisma.marker.create({
+          data: {
+            runId,
+            tick,
+            kind: "intervention",
+            label: `Cascade seed: "${t.slice(0, 60)}"`,
+          },
+        });
+        break;
+      }
+    }
 
     const obs = computeObservations(ctx);
 
@@ -101,6 +144,12 @@ export async function runRunLoop(
 
       // Update relationships.
       await updateRelationships(agent.id, decision, ctx);
+
+      // Track action share window for the intentions-kmeans detector.
+      const window = actionShareWindow.get(agent.id) ?? new Array(5).fill(0);
+      const idx = ACTION_KINDS.indexOf(decision.action.kind);
+      if (idx >= 0) window[idx] += 1;
+      actionShareWindow.set(agent.id, window);
 
       // Persist decision.
       const created = await prisma.decision.create({
@@ -159,43 +208,93 @@ export async function runRunLoop(
       }
     }
 
-    // Game master arbitration + narration.
-    const gm = await arbitrate(ctx);
+    // Game master arbitration + narration (verbosity from run config).
+    const gm = await arbitrate(ctx, verbosity);
     for (const m of gm.markers) {
       await prisma.marker.create({
         data: { runId, tick, kind: m.kind, label: m.label },
       });
     }
 
-    // Emergence: community detection on the fly.
+    // Emergence: 4 detectors run continuously.
     let emergenceJson: string | null = null;
     if (tick > 0 && tick % EMERGENCE_INTERVAL === 0) {
+      const detectorOutputs: Record<string, unknown> = {};
+
+      // Community detection (Louvain).
       const rels = await prisma.relationship.findMany({
         where: { runId },
         select: { fromAgentId: true, toAgentId: true, weight: true },
       });
-      const result = detectCommunities(
+      const community = detectCommunities(
         ctx.agents.map((a) => a.id),
         rels.map((r) => ({ from: r.fromAgentId, to: r.toAgentId, weight: r.weight })),
       );
-      emergenceJson = JSON.stringify(result);
-      if (result.communities >= 2) {
-        await prisma.marker.create({
-          data: {
-            runId,
-            tick,
-            kind: "emergence",
-            label: `${result.communities} communities detected (mod=${result.modularity.toFixed(2)})`,
-          },
-        });
-        publish({
-          type: "marker",
+      detectorOutputs.community = community;
+      if (community.communities >= 2) {
+        await emitMarker(runId, tick, "emergence", `${community.communities} communities (mod=${community.modularity.toFixed(2)})`);
+      }
+
+      // Phase transition (belief variance ratio).
+      const beliefVectors = ctx.agents.map((a) =>
+        Object.values(a.beliefs).length > 0 ? Object.values(a.beliefs) : [0],
+      );
+      const phase = detectPhaseTransition(beliefVectors, phaseState);
+      detectorOutputs.phase = phase;
+      if (phase.fired) {
+        await emitMarker(runId, tick, "emergence", `phase transition (ratio=${phase.ratio.toFixed(2)})`);
+      }
+
+      // Intentions k-means (regime shift in agent action mix).
+      const intentVectors = ctx.agents.map((a) => {
+        const w = actionShareWindow.get(a.id) ?? new Array(5).fill(0);
+        const sum = w.reduce((s, x) => s + x, 0);
+        if (sum === 0) return new Array(5).fill(0.2);
+        return w.map((x) => x / sum);
+      });
+      const intentions = detectIntentionsKmeans(intentVectors, intentionsState);
+      detectorOutputs.intentions = intentions;
+      if (intentions.fired) {
+        await emitMarker(
           runId,
           tick,
-          kind: "emergence",
-          label: `${result.communities} communities`,
-        });
+          "emergence",
+          `intention regime shift (k=${intentions.k}, sizes=[${intentions.clusterSizes.join(",")}])`,
+        );
       }
+
+      // Percolation cascade (information spread).
+      const recentMems = await prisma.memory.findMany({
+        where: { runId, tick: { gte: Math.max(0, tick - 5) } },
+        select: { agentId: true, embedding: true },
+        take: 1000,
+      });
+      const grouped = new Map<string, number[][]>();
+      for (const m of recentMems) {
+        const arr = grouped.get(m.agentId) ?? [];
+        try {
+          arr.push(JSON.parse(m.embedding) as number[]);
+        } catch {
+          /* skip */
+        }
+        grouped.set(m.agentId, arr);
+      }
+      const agentEmbs = ctx.agents.map((a) => ({
+        agentId: a.id,
+        embeddings: grouped.get(a.id) ?? [],
+      }));
+      const cascade = detectCascade(agentEmbs, cascadeState);
+      detectorOutputs.cascade = cascade;
+      if (cascade.fired) {
+        await emitMarker(
+          runId,
+          tick,
+          "emergence",
+          `cascade: ${(cascade.reach * 100).toFixed(0)}% reach (Δ ${(cascade.velocity * 100).toFixed(0)}%)`,
+        );
+      }
+
+      emergenceJson = JSON.stringify(detectorOutputs);
     }
 
     // Persist agent positions.
@@ -258,6 +357,16 @@ export async function runRunLoop(
     data: { status: "completed", endedAt: new Date() },
   });
   publish({ type: "status", runId, status: "completed" });
+}
+
+async function emitMarker(
+  runId: string,
+  tick: number,
+  kind: string,
+  label: string,
+): Promise<void> {
+  await prisma.marker.create({ data: { runId, tick, kind, label } });
+  publish({ type: "marker", runId, tick, kind, label });
 }
 
 async function hydrateContext(

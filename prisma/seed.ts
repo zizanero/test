@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { listTemplates } from "../src/templates";
+import { SEED_DATASETS } from "../src/server/validation/datasets";
 
 const prisma = new PrismaClient();
 
@@ -57,6 +58,32 @@ async function main() {
     console.log(`✓ template seeded: ${t.slug}`);
   }
   console.log(`✓ workspace=${ws.id} project=${proj.id}`);
+
+  for (const d of SEED_DATASETS) {
+    await prisma.dataset.upsert({
+      where: { slug: d.slug },
+      update: {
+        title: d.title,
+        source: d.source,
+        category: d.category,
+        description: d.description,
+        metricKey: d.metricKey,
+        license: d.license ?? null,
+        csvData: d.csvData,
+      },
+      create: {
+        slug: d.slug,
+        title: d.title,
+        source: d.source,
+        category: d.category,
+        description: d.description,
+        metricKey: d.metricKey,
+        license: d.license ?? null,
+        csvData: d.csvData,
+      },
+    });
+    console.log(`✓ dataset seeded: ${d.slug}`);
+  }
 }
 
 main()

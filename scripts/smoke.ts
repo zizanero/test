@@ -257,6 +257,93 @@ async function main() {
     throw new Error("non-deterministic across fresh runs of same sim with same seed");
   }
 
+  // 11. Pre-registration: lock + tamper-evident hash + cannot re-lock.
+  console.log("→ pre-registration lock + verify");
+  const { lockPreregistration, readPreregistration, verifyHash } = await import(
+    "@/server/preregistration"
+  );
+  const prereg = await prisma.run.create({
+    data: {
+      simulationId: sim.simulationId,
+      label: "prereg-smoke",
+      status: "queued",
+      seed: 1,
+      totalTicks: 10,
+      specSnapshot: "{}",
+    },
+  });
+  const rec = await lockPreregistration(prereg.id, {
+    hypotheses: ["H1: support_bus_line shifts toward majority by tick 50"],
+    primaryMetrics: ["vote_yes_share"],
+    stopConditions: [{ kind: "tick_limit", value: "60" }],
+    notes: "Smoke test prereg",
+  });
+  if (!verifyHash(rec)) throw new Error("prereg hash failed");
+  console.log(`   locked rec.hash=${rec.hash.slice(0, 12)}…`);
+  let secondLockFailed = false;
+  try {
+    await lockPreregistration(prereg.id, {
+      hypotheses: ["different"],
+      primaryMetrics: ["x"],
+      stopConditions: [],
+    });
+  } catch {
+    secondLockFailed = true;
+  }
+  if (!secondLockFailed) throw new Error("second prereg lock should have failed");
+  const readBack = await readPreregistration(prereg.id);
+  if (!readBack || readBack.hash !== rec.hash)
+    throw new Error("prereg readback mismatch");
+
+  // 12. Equity panel.
+  console.log("→ equity panel for first run");
+  const { computeEquity } = await import("@/server/equity");
+  const equity = await computeEquity(firstRunId);
+  console.log(
+    `   metric=${equity.metric} overallN=${equity.overallN} rows=${equity.rows.length}`,
+  );
+  if (equity.rows.length === 0) throw new Error("empty equity report");
+
+  // 13. Validation library: 3 seed datasets present.
+  console.log("→ validation library");
+  const datasets = await prisma.dataset.findMany();
+  console.log(`   ${datasets.length} datasets seeded`);
+  if (datasets.length < 3) throw new Error("expected ≥3 datasets seeded");
+
+  // 14. Cost projection (rewrite picks up observed-run data).
+  console.log("→ cost projection (from observed run)");
+  const { projectCost } = await import("@/server/costProjection");
+  const queuedRun = await prisma.run.create({
+    data: {
+      simulationId: sim.simulationId,
+      label: "cost-projection-smoke",
+      status: "queued",
+      seed: 7,
+      totalTicks: 30,
+      specSnapshot: "{}",
+    },
+  });
+  const band = await projectCost(queuedRun.id);
+  console.log(
+    `   basis=${band.basis} mid=$${band.mid} band=[$${band.low},$${band.high}] mode=${band.mode}`,
+  );
+  if (band.basis !== "from_observed_run") {
+    throw new Error(
+      `expected basis=from_observed_run with sibling history, got ${band.basis}`,
+    );
+  }
+
+  // 15. Multi-detector smoke: confirm at least one of phase / cascade / intentions
+  // markers landed somewhere in the 30-tick run.
+  console.log("→ emergence detectors fired");
+  const eMarkers = await prisma.marker.findMany({
+    where: { runId: firstRunId, kind: "emergence" },
+    select: { label: true },
+    take: 50,
+  });
+  console.log(`   ${eMarkers.length} emergence markers`);
+  if (eMarkers.length === 0) throw new Error("no emergence markers fired");
+
   console.log("== smoke OK ==");
   await prisma.$disconnect();
 }

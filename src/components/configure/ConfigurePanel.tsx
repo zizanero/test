@@ -36,6 +36,7 @@ export function ConfigurePanel({
   const [totalTicks, setTotalTicks] = useState(60);
   const [costCap, setCostCap] = useState(2);
   const [fidelity, setFidelity] = useState<"cheap" | "balanced" | "high_fidelity">("balanced");
+  const [verbosity, setVerbosity] = useState<"terse" | "narrative" | "cinematic">("terse");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
@@ -53,6 +54,7 @@ export function ConfigurePanel({
           totalTicks,
           costCap,
           fidelity,
+          narrationVerbosity: verbosity,
           label: `seed=${seed}, ${totalTicks}t, ${fidelity}`,
         }),
       });
@@ -149,6 +151,19 @@ export function ConfigurePanel({
                 <option value="cheap">cheap (Haiku-only)</option>
                 <option value="balanced">balanced (Haiku + Sonnet)</option>
                 <option value="high_fidelity">high fidelity (Sonnet)</option>
+              </select>
+            </Field>
+            <Field label="Narration verbosity">
+              <select
+                value={verbosity}
+                onChange={(e) =>
+                  setVerbosity(e.target.value as "terse" | "narrative" | "cinematic")
+                }
+                className="w-full rounded-md border border-bg-3 bg-bg-2 px-2 py-1 text-sm"
+              >
+                <option value="terse">terse (researcher)</option>
+                <option value="narrative">narrative (analyst)</option>
+                <option value="cinematic">cinematic (presentation)</option>
               </select>
             </Field>
           </div>

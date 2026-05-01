@@ -34,6 +34,8 @@ model Simulation {
   spec         String   // JSON: { population, world, rules, scenario }
   version      Int      @default(1)
   provenance   String?
+  // Equity strata: JSON array of { name, classFilter } for sub-population fit metrics.
+  equityStrata String?
   createdAt    DateTime @default(now())
   populations  Population[]
   worlds       World[]
@@ -149,9 +151,14 @@ model Run {
   startedAt      DateTime?
   endedAt        DateTime?
   specSnapshot   String
-  costUsd        Float        @default(0)
-  costCap        Float?
-  ticks          Tick[]
+  costUsd               Float        @default(0)
+  costCap               Float?
+  // Pre-registration: locked-in hypotheses+metrics+stop-conditions before run.
+  // Once set, the engine refuses post-hoc edits; produces a tamper-evident SHA.
+  preregistration       String?      // JSON: {hypotheses, primaryMetrics, stopConditions, hash, lockedAt}
+  // Live narration verbosity for this run.
+  narrationVerbosity    String       @default("terse") // terse | narrative | cinematic
+  ticks                 Tick[]
   agents         Agent[]
   decisions      Decision[]
   memories       Memory[]
@@ -302,4 +309,18 @@ model Board {
   id    String @id @default(cuid())
   name  String
   items String // JSON
+}
+
+// Curated reference datasets (GSS-style) for calibration.
+model Dataset {
+  slug        String   @id
+  title       String
+  source      String   // e.g., "GSS 2024", "ANES 2024"
+  category    String   // attitudes | vote_share | cascades | health
+  description String
+  // Long-format CSV rows: { stratum, value }
+  csvData     String
+  metricKey   String   // matches a sim metric name
+  license     String?
+  createdAt   DateTime @default(now())
 }

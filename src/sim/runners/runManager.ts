@@ -20,6 +20,7 @@ export interface StartArgs {
   fidelity?: "cheap" | "balanced" | "high_fidelity";
   parentRunId?: string;
   branchedAtTick?: number;
+  narrationVerbosity?: "terse" | "narrative" | "cinematic";
 }
 
 export async function startRun(args: StartArgs): Promise<{ runId: string }> {
@@ -55,6 +56,7 @@ export async function startRun(args: StartArgs): Promise<{ runId: string }> {
       costCap: args.costCap ?? null,
       parentRunId: args.parentRunId ?? null,
       branchedAtTick: args.branchedAtTick ?? null,
+      narrationVerbosity: args.narrationVerbosity ?? "terse",
     },
   });
 

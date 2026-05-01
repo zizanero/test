@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  projects  Project[]
+}
+
+model Project {
+  id          String       @id @default(cuid())
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id])
+  name        String
+  description String?
+  simulations Simulation[]
+  createdAt   DateTime     @default(now())
+}
+
+model Simulation {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id])
+  name         String
+  description  String?
+  templateSlug String?
+  spec         String   // JSON: { population, world, rules, scenario }
+  version      Int      @default(1)
+  provenance   String?
+  createdAt    DateTime @default(now())
+  populations  Population[]
+  worlds       World[]
+  rules        RuleEvent[]
+  runs         Run[]
+}
+
+model Population {
+  id           String     @id @default(cuid())
+  simulationId String
+  simulation   Simulation @relation(fields: [simulationId], references: [id])
+  name         String
+  agentClasses AgentClass[]
+}
+
+model AgentClass {
+  id            String     @id @default(cuid())
+  populationId  String
+  population    Population @relation(fields: [populationId], references: [id])
+  name          String
+  count         Int
+  proseIdentity String
+  structured    String     // JSON
+  modelTier     String     @default("auto")
+  agents        Agent[]
+}
+
+model Agent {
+  id                String       @id @default(cuid())
+  classId           String
+  class             AgentClass   @relation(fields: [classId], references: [id])
+  runId             String?
+  run               Run?         @relation(fields: [runId], references: [id])
+  displayName       String
+  proseIdentity     String
+  structured        String
+  currentLocationId String?
+  currentLocation   Location?    @relation(fields: [currentLocationId], references: [id])
+  beliefs           String       @default("{}")
+  goal              String?
+  status            String       @default("alive")
+  spawnTick         Int          @default(0)
+  memories          Memory[]
+  decisions         Decision[]
+  reflections       Reflection[]
+  outRels           Relationship[] @relation("from")
+  inRels            Relationship[] @relation("to")
+
+  @@index([runId])
+}
+
+model World {
+  id           String     @id @default(cuid())
+  simulationId String
+  simulation   Simulation @relation(fields: [simulationId], references: [id])
+  name         String
+  width        Int
+  height       Int
+  locations    Location[]
+}
+
+model Location {
+  id          String     @id @default(cuid())
+  worldId     String
+  world       World      @relation(fields: [worldId], references: [id])
+  parentId    String?
+  parent      Location?  @relation("LocTree", fields: [parentId], references: [id])
+  children    Location[] @relation("LocTree")
+  name        String
+  kind        String
+  x           Int
+  y           Int
+  capacity    Int?
+  affordances String?
+  agentsHere  Agent[]
+}
+
+model RuleEvent {
+  id           String          @id @default(cuid())
+  simulationId String
+  simulation   Simulation      @relation(fields: [simulationId], references: [id])
+  name         String
+  triggerKind  String
+  triggerSpec  String
+  effect       String
+  conditions   RuleCondition[]
+}
+
+model RuleCondition {
+  id         String    @id @default(cuid())
+  ruleId     String
+  rule       RuleEvent @relation(fields: [ruleId], references: [id])
+  expression String
+}
+
+model Run {
+  id             String       @id @default(cuid())
+  simulationId   String
+  simulation     Simulation   @relation(fields: [simulationId], references: [id])
+  parentRunId    String?
+  parent         Run?         @relation("RunTree", fields: [parentRunId], references: [id])
+  branches       Run[]        @relation("RunTree")
+  branchedAtTick Int?
+  label          String
+  status         String
+  seed           Int
+  totalTicks     Int
+  currentTick    Int          @default(0)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  specSnapshot   String
+  costUsd        Float        @default(0)
+  costCap        Float?
+  ticks          Tick[]
+  agents         Agent[]
+  decisions      Decision[]
+  memories       Memory[]
+  reflections    Reflection[]
+  costLedger     CostLedger[]
+  hotCues        HotCue[]
+  markers        Marker[]
+
+  @@index([simulationId, parentRunId])
+}
+
+model Tick {
+  id        String   @id @default(cuid())
+  runId     String
+  run       Run      @relation(fields: [runId], references: [id])
+  index     Int
+  snapshot  String   // JSON
+  narration String?
+  emergence String?
+  createdAt DateTime @default(now())
+
+  @@unique([runId, index])
+  @@index([runId, index])
+}
+
+model Memory {
+  id                String   @id @default(cuid())
+  runId             String
+  run               Run      @relation(fields: [runId], references: [id])
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id])
+  tick              Int
+  kind              String
+  content           String
+  importance        Float
+  embedding         String   // JSON: number[]
+  retrievalCount    Int      @default(0)
+  lastRetrievedTick Int?
+  parentIds         String?
+  createdAt         DateTime @default(now())
+
+  @@index([agentId, tick])
+}
+
+model Decision {
+  id                 String   @id @default(cuid())
+  runId              String
+  run                Run      @relation(fields: [runId], references: [id])
+  agentId            String
+  agent              Agent    @relation(fields: [agentId], references: [id])
+  tick               Int
+  retrievedMemoryIds String   // JSON: string[]
+  prompt             String
+  promptVersion      String
+  modelTier          String
+  modelName          String
+  reasoning          String
+  reasoningSummary   String?
+  action             String   // JSON
+  tokensIn           Int
+  tokensOut          Int
+  costUsd            Float
+  cached             Boolean  @default(false)
+  durationMs         Int
+
+  @@index([agentId, tick])
+  @@index([runId, tick])
+}
+
+model Reflection {
+  id                 String  @id @default(cuid())
+  runId              String
+  run                Run     @relation(fields: [runId], references: [id])
+  agentId            String
+  agent              Agent   @relation(fields: [agentId], references: [id])
+  tick               Int
+  insight            String
+  evidenceMemoryIds  String  // JSON: string[]
+  parentReflectionId String?
+  importance         Float
+
+  @@index([agentId, tick])
+}
+
+model Relationship {
+  id              String @id @default(cuid())
+  runId           String
+  fromAgentId     String
+  toAgentId       String
+  from            Agent  @relation("from", fields: [fromAgentId], references: [id])
+  to              Agent  @relation("to", fields: [toAgentId], references: [id])
+  weight          Float
+  kind            String
+  lastUpdatedTick Int
+
+  @@unique([runId, fromAgentId, toAgentId])
+}
+
+model CostLedger {
+  id        String   @id @default(cuid())
+  runId     String
+  run       Run      @relation(fields: [runId], references: [id])
+  tick      Int
+  agentId   String?
+  modelName String
+  tier      String
+  tokensIn  Int
+  tokensOut Int
+  costUsd   Float
+  cached    Boolean
+  createdAt DateTime @default(now())
+
+  @@index([runId, tick])
+}
+
+model Marker {
+  id    String  @id @default(cuid())
+  runId String
+  run   Run     @relation(fields: [runId], references: [id])
+  tick  Int
+  kind  String
+  label String
+  data  String?
+}
+
+model HotCue {
+  id    String @id @default(cuid())
+  runId String
+  run   Run    @relation(fields: [runId], references: [id])
+  pad   Int
+  tick  Int
+  label String
+  color String
+}
+
+model Template {
+  slug        String  @id
+  category    String
+  title       String
+  description String
+  attribution String?
+  spec        String  // JSON
+  dashboard   String  // JSON
+  readmeMd    String
+}
+
+model Board {
+  id    String @id @default(cuid())
+  name  String
+  items String // JSON
+}

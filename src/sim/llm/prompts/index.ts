@@ -189,6 +189,58 @@ Hard rules:
   };
 }
 
+// --- scenario generator (designer-LLM) ---------------------------------
+
+export const SCENARIO_PROMPT_VERSION = "scenario/v1";
+
+export function renderScenarioPrompt(args: {
+  description: string;
+}): RenderedPrompt {
+  const system = `You are a simulation designer. Given a one-paragraph description of a social scenario, produce a runnable Populace simulation specification.
+
+Hard rules:
+1. Output ONLY a single JSON object that matches the schema below.
+2. Keep it small but interesting: 2–6 agent classes, 2–8 locations, 1–4 rules.
+3. Every persona's initialLocationName MUST match a world.locations[].name exactly.
+4. totalTicks should be 30–120; default 60.
+5. Use kind="area" for top-level locations.
+6. Rule effects must be either "inject_observation" (with payload.text + payload.fraction) or "mutate_ambient" (with payload.topic + payload.delta).
+7. Every persona's proseIdentity must be 1–3 sentences, in first person or descriptive third person.
+8. Pick a category from: "Information", "Markets", "Organizational", "Public health", "Negotiation", "Group decision", "Historical counterfactual".
+
+Schema:
+{
+  "title": "<short title>",
+  "category": "<one of the categories>",
+  "description": "<2-3 sentence summary>",
+  "population": {
+    "classes": [
+      {"name": "<class name>", "count": <int>, "proseIdentity": "<persona prose>",
+       "initialBeliefs": {<topic>: <-1..1 float>}, "initialGoal": "<short goal>",
+       "initialLocationName": "<location name>"}
+    ]
+  },
+  "world": {
+    "name": "<world name>", "width": <int 12..30>, "height": <int 8..20>,
+    "locations": [
+      {"name": "<name>", "kind": "area", "x": <int>, "y": <int>, "capacity": <int|null>}
+    ]
+  },
+  "rules": [
+    {"name": "<short>", "triggerKind": "tick", "triggerSpec": {"atTick": <int>},
+     "effect": {"kind": "inject_observation"|"mutate_ambient", "payload": {...}}}
+  ],
+  "scenario": {"totalTicks": <int>, "fidelity": "cheap"|"balanced"|"high_fidelity", "defaultSeed": <int>, "costCapUsd": <float>}
+}`;
+  const user = `Description: ${args.description}\n\nReturn the JSON only.`;
+  return {
+    promptName: "scenario",
+    promptVersion: SCENARIO_PROMPT_VERSION,
+    system,
+    user,
+  };
+}
+
 // --- registry -----------------------------------------------------------
 
 export const PROMPT_VERSIONS = {
@@ -198,4 +250,5 @@ export const PROMPT_VERSIONS = {
   narration: NARRATION_PROMPT_VERSION,
   interview: INTERVIEW_PROMPT_VERSION,
   causal: CAUSAL_PROMPT_VERSION,
+  scenario: SCENARIO_PROMPT_VERSION,
 };

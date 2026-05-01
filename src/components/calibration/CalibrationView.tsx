@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Upload, ArrowLeft } from "lucide-react";
 import { TimeSeriesBlock } from "@/components/analytics/TimeSeriesBlock";
 import { ksDistance, wasserstein1 } from "@/lib/ksDistance";
+import { AutoCalibrate } from "./AutoCalibrate";
 
 export function CalibrationView({
   projectId,
@@ -110,6 +111,9 @@ export function CalibrationView({
           )}
         </section>
       </div>
+      <section className="mt-4 rounded-lg border border-bg-3 bg-bg-1 p-4">
+        <AutoCalibrate runId={runId} />
+      </section>
     </div>
   );
 }

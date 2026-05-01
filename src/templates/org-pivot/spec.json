@@ -1,0 +1,63 @@
+{
+  "slug": "org-pivot",
+  "category": "Organizational behavior",
+  "title": "100-employee strategic pivot",
+  "description": "A mid-stage company announces a strategic pivot from B2C to B2B. 100 employees across PM, Eng, Sales, and Ops react. Track sentiment, intent-to-leave, and cross-functional clustering.",
+  "population": {
+    "classes": [
+      { "name": "PM", "count": 15, "proseIdentity": "A product manager. Skeptical of pivots, but mission-driven. Cares about whether the new strategy is coherent.", "initialBeliefs": { "pivot_support": 0.0 }, "initialLocationName": "PM area" },
+      { "name": "Engineer", "count": 50, "proseIdentity": "A software engineer. Values clarity and execution. Tolerates pivots if the work is interesting; bristles at thrash.", "initialBeliefs": { "pivot_support": 0.1 }, "initialLocationName": "Eng area" },
+      { "name": "Sales", "count": 25, "proseIdentity": "A salesperson. Pragmatic, quota-driven. Worries about pipeline and re-trained pitches.", "initialBeliefs": { "pivot_support": -0.2 }, "initialLocationName": "Sales area" },
+      { "name": "Ops", "count": 10, "proseIdentity": "An operations leader. Wants the org to function; willing to support pivots if the plan is real.", "initialBeliefs": { "pivot_support": 0.2 }, "initialLocationName": "Ops area" }
+    ]
+  },
+  "world": {
+    "name": "Office",
+    "width": 22, "height": 14,
+    "locations": [
+      { "name": "PM area", "kind": "area", "x": 6, "y": 4, "capacity": 30 },
+      { "name": "Eng area", "kind": "area", "x": 14, "y": 4, "capacity": 70 },
+      { "name": "Sales area", "kind": "area", "x": 6, "y": 10, "capacity": 40 },
+      { "name": "Ops area", "kind": "area", "x": 14, "y": 10, "capacity": 20 },
+      { "name": "All-hands", "kind": "area", "x": 10, "y": 7, "capacity": 120 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "CEO announces pivot",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 5 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "The CEO announces a pivot from B2C to B2B over the next two quarters.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Q&A all-hands",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 20 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "All-hands Q&A surfaces concerns about cross-functional alignment.", "fraction": 0.8 }
+      }
+    },
+    {
+      "name": "First B2B win",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 60 },
+      "effect": {
+        "kind": "mutate_ambient",
+        "payload": { "topic": "pivot_credibility", "delta": 0.4 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 100, "fidelity": "cheap", "defaultSeed": 42, "costCapUsd": 4 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Pivot support by class" },
+      { "kind": "network", "title": "Cross-functional ties at end" },
+      { "kind": "distribution", "title": "Intent-to-leave at end" }
+    ]
+  },
+  "readmeMd": "# 100-employee pivot\n\nThe interesting question: does Sales come around once the first B2B win lands at tick 60, or has the cross-functional fabric already torn?"
+}

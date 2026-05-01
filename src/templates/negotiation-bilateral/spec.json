@@ -1,0 +1,47 @@
+{
+  "slug": "negotiation-bilateral",
+  "category": "Negotiation",
+  "title": "Bilateral negotiation",
+  "description": "Two parties (Buyer + Seller) with private valuations negotiate over price across multiple rounds. Watch concession patterns, deadlocks, and final agreement gap.",
+  "population": {
+    "classes": [
+      { "name": "Buyer", "count": 1, "proseIdentity": "A buyer with a willingness-to-pay of 80. Patient, risk-averse, prefers to anchor low and concede slowly.", "initialBeliefs": { "wtp": 0.8 }, "initialGoal": "Buy at the lowest price possible.", "initialLocationName": "Negotiation room" },
+      { "name": "Seller", "count": 1, "proseIdentity": "A seller with a reservation of 50. Slightly impatient, signals commitment by holding firm in early rounds, then concedes.", "initialBeliefs": { "reservation": 0.5 }, "initialGoal": "Sell above 50; ideally close to 75.", "initialLocationName": "Negotiation room" }
+    ]
+  },
+  "world": {
+    "name": "Negotiation",
+    "width": 8, "height": 6,
+    "locations": [
+      { "name": "Negotiation room", "kind": "area", "x": 4, "y": 3, "capacity": 4 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Round 1 opens",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 1 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "Mediator: state your opening offers.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Deadline pressure mounts",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 25 },
+      "effect": {
+        "kind": "mutate_ambient",
+        "payload": { "topic": "deadline_pressure", "delta": 0.5 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 40, "fidelity": "balanced", "defaultSeed": 17, "costCapUsd": 1 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Offer trajectory" },
+      { "kind": "narrative", "title": "Negotiation log" }
+    ]
+  },
+  "readmeMd": "# Bilateral negotiation\n\nWith a 30-point ZOPA (50–80) and deadline pressure rising at tick 25, where does the agreement land?"
+}

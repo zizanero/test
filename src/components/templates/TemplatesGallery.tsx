@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ScenarioGenerator } from "@/components/scenario-generator/ScenarioGenerator";
 
 interface Template {
   slug: string;
@@ -94,6 +95,9 @@ export function TemplatesGallery({ templates }: { templates: Template[] }) {
             <div className="mt-8 rounded-lg border border-bg-3 bg-bg-1 p-4">
               <h3 className="mb-2 text-sm font-medium text-ink-1">Readme</h3>
               <pre className="whitespace-pre-wrap text-xs text-ink-2">{sel.readmeMd}</pre>
+            </div>
+            <div className="mt-6">
+              <ScenarioGenerator projectId="default-project" />
             </div>
           </div>
         )}

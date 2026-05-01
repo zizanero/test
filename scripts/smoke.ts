@@ -344,6 +344,42 @@ async function main() {
   console.log(`   ${eMarkers.length} emergence markers`);
   if (eMarkers.length === 0) throw new Error("no emergence markers fired");
 
+  // 16. ABC auto-calibration against a seeded dataset.
+  console.log("→ ABC auto-calibration (30 samples)");
+  const { runAbc } = await import("@/sim/calibration/abc");
+  const abc = await runAbc({
+    runId: firstRunId,
+    targetDatasetSlug: "gss-attitude-baseline",
+    numSamples: 30,
+    topK: 5,
+  });
+  console.log(
+    `   accepted ${abc.numAccepted}/${abc.numSamples} bestKS=${abc.bestSample.distance.toFixed(3)} med(rec/imp/rel)=${abc.posterior.recencyW.q50.toFixed(2)}/${abc.posterior.importanceW.q50.toFixed(2)}/${abc.posterior.relevanceW.q50.toFixed(2)}`,
+  );
+  if (abc.numAccepted === 0) throw new Error("ABC accepted 0 samples");
+  if (abc.bestSample.distance > 0.95) throw new Error("ABC best KS distance suspicious");
+
+  // 17. AI scenario generator (mock mode emits a valid spec).
+  console.log("→ AI scenario generator");
+  const { generateScenario } = await import("@/server/scenarioGenerator");
+  const sg = await generateScenario({
+    description: "A small town reacts to a polarizing news story over a week.",
+    seed: 7,
+  });
+  console.log(
+    `   ok=${sg.ok} title="${sg.scenario?.title ?? "—"}" prompt=${sg.promptVersion} errors=${sg.errors.length}`,
+  );
+  if (!sg.ok || !sg.scenario) throw new Error(`scenario gen failed: ${sg.errors.join(", ")}`);
+  if (sg.scenario.population.classes.length === 0)
+    throw new Error("generated scenario has no classes");
+
+  // 18. CLI bin file exists.
+  console.log("→ CLI seed available");
+  const fs = await import("node:fs/promises");
+  const stat = await fs.stat("./bin/populace.ts");
+  if (!stat.isFile()) throw new Error("bin/populace.ts missing");
+  console.log(`   bin/populace.ts present (${stat.size}B)`);
+
   console.log("== smoke OK ==");
   await prisma.$disconnect();
 }

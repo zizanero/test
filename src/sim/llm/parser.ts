@@ -91,3 +91,91 @@ export type Decision = z.infer<typeof DecisionSchema>;
 export type Importance = z.infer<typeof ImportanceSchema>;
 export type Reflection = z.infer<typeof ReflectionSchema>;
 export type Causal = z.infer<typeof CausalSchema>;
+
+// --- scenario generator schema -----------------------------------------
+
+const ScenarioLocation = z.object({
+  name: z.string().min(1),
+  kind: z.enum(["area", "sub_area", "object"]).default("area"),
+  x: z.number().int(),
+  y: z.number().int(),
+  capacity: z.number().int().nullable().optional(),
+});
+
+const ScenarioClass = z.object({
+  name: z.string().min(1),
+  count: z.number().int().min(1).max(500),
+  proseIdentity: z.string().min(10),
+  initialBeliefs: z.record(z.number()).optional(),
+  initialGoal: z.string().optional(),
+  initialLocationName: z.string().min(1),
+});
+
+const ScenarioEffect = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("inject_observation"),
+    payload: z.object({
+      text: z.string().min(1),
+      fraction: z.number().min(0).max(1).default(1),
+    }),
+  }),
+  z.object({
+    kind: z.literal("mutate_ambient"),
+    payload: z.object({
+      topic: z.string().min(1),
+      delta: z.number(),
+    }),
+  }),
+]);
+
+const ScenarioRule = z.object({
+  name: z.string().min(1),
+  triggerKind: z.enum(["tick", "predicate", "manual"]).default("tick"),
+  triggerSpec: z.object({
+    atTick: z.number().int().min(0).optional(),
+    everyN: z.number().int().min(1).optional(),
+  }),
+  effect: ScenarioEffect,
+});
+
+export const ScenarioSchema = z.object({
+  title: z.string().min(1),
+  category: z.string().min(1),
+  description: z.string().min(1),
+  population: z.object({
+    classes: z.array(ScenarioClass).min(1).max(8),
+  }),
+  world: z.object({
+    name: z.string().min(1),
+    width: z.number().int().min(8).max(60),
+    height: z.number().int().min(6).max(40),
+    locations: z.array(ScenarioLocation).min(1).max(20),
+  }),
+  rules: z.array(ScenarioRule).max(8).default([]),
+  scenario: z.object({
+    totalTicks: z.number().int().min(10).max(500),
+    fidelity: z.enum(["cheap", "balanced", "high_fidelity"]).default("balanced"),
+    defaultSeed: z.number().int().default(42),
+    costCapUsd: z.number().nonnegative().default(3),
+  }),
+});
+
+export type ScenarioGenerated = z.infer<typeof ScenarioSchema>;
+
+// Validator for AI-generated scenarios. Beyond schema, ensures every persona's
+// initialLocationName references a real location.
+export function validateScenario(s: ScenarioGenerated): {
+  ok: boolean;
+  errors: string[];
+} {
+  const locNames = new Set(s.world.locations.map((l) => l.name));
+  const errors: string[] = [];
+  for (const cls of s.population.classes) {
+    if (!locNames.has(cls.initialLocationName)) {
+      errors.push(
+        `class "${cls.name}" references unknown location "${cls.initialLocationName}"`,
+      );
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}

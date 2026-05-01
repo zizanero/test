@@ -1,0 +1,41 @@
+{
+  "slug": "labor-market",
+  "category": "Markets",
+  "title": "Labor-market matching (minimum wage)",
+  "description": "Horton-style labor-market replication. 30 employers and 60 workers; a minimum-wage floor binds at tick 25. Watch unemployment, posted wage, and accepted offers shift.",
+  "attribution": "Inspired by Horton 2023 'Large language models as simulated economic agents'.",
+  "population": {
+    "classes": [
+      { "name": "Employer", "count": 30, "proseIdentity": "An employer with a private productivity-per-worker value. Posts a wage, accepts/rejects applicants. Mildly noisy; cuts hours when costs bind.", "initialBeliefs": { "productivity": 0.6 }, "initialLocationName": "Market floor" },
+      { "name": "Worker", "count": 60, "proseIdentity": "A worker with a private reservation wage. Searches, applies, accepts above reservation. Some have outside options.", "initialBeliefs": { "reservation_wage": 0.4 }, "initialLocationName": "Hiring hall" }
+    ]
+  },
+  "world": {
+    "name": "Labor market",
+    "width": 18, "height": 12,
+    "locations": [
+      { "name": "Market floor", "kind": "area", "x": 6, "y": 6, "capacity": 80 },
+      { "name": "Hiring hall", "kind": "area", "x": 12, "y": 6, "capacity": 80 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Minimum wage floor binds",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 25 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "City council enacts a minimum wage of 0.55. Employers posting below must adjust.", "fraction": 1 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 60, "fidelity": "cheap", "defaultSeed": 11, "costCapUsd": 3 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Unemployment rate over time" },
+      { "kind": "distribution", "title": "Posted-wage distribution" },
+      { "kind": "comparison", "title": "Pre vs post min-wage" }
+    ]
+  },
+  "readmeMd": "# Labor-market matching\n\nMinimum wage binds at tick 25. The interesting moment is the gap between tick 24 and tick 30: who exits, who adjusts."
+}

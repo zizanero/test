@@ -1,0 +1,60 @@
+{
+  "slug": "community-evac",
+  "category": "Public health",
+  "title": "Community evacuation (hurricane)",
+  "description": "150 households face a 36-hour evacuation order. Decisions vary by family situation, vehicle access, prior experience, and trust in officials.",
+  "attribution": "Inspired by AgentSociety hurricane scenario.",
+  "population": {
+    "classes": [
+      { "name": "WithVehicle", "count": 80, "proseIdentity": "A household with a working vehicle and at least one driver. Faster to act on evacuation orders.", "initialBeliefs": { "evacuate": 0.2 }, "initialLocationName": "Coastal town" },
+      { "name": "NoVehicle", "count": 40, "proseIdentity": "A household without reliable transportation. Depends on neighbors or municipal buses; later to act.", "initialBeliefs": { "evacuate": -0.1 }, "initialLocationName": "Coastal town" },
+      { "name": "ElderlyAtHome", "count": 30, "proseIdentity": "An elderly household, possibly with mobility limits. Strongly anchored to their home and prior storms; often the last to leave.", "initialBeliefs": { "evacuate": -0.3 }, "initialLocationName": "Coastal town" }
+    ]
+  },
+  "world": {
+    "name": "Coast",
+    "width": 24, "height": 12,
+    "locations": [
+      { "name": "Coastal town", "kind": "area", "x": 6, "y": 8, "capacity": 200 },
+      { "name": "Highway", "kind": "area", "x": 14, "y": 8, "capacity": 100 },
+      { "name": "Inland shelter", "kind": "area", "x": 20, "y": 4, "capacity": 200 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Voluntary evacuation order",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 5 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "Mayor issues a voluntary evacuation. Storm landfall in 36 hours.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Mandatory order",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 20 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "Governor upgrades to mandatory evacuation; National Guard deploying.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Highway congestion",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 30 },
+      "effect": {
+        "kind": "mutate_ambient",
+        "payload": { "topic": "highway_jam", "delta": 0.4 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 50, "fidelity": "cheap", "defaultSeed": 99, "costCapUsd": 3 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Evacuated fraction by class" },
+      { "kind": "distribution", "title": "Time-to-evacuate distribution" }
+    ]
+  },
+  "readmeMd": "# Community evacuation\n\nThe ElderlyAtHome class has the strongest anchoring to home; watch the gap between voluntary (tick 5) and mandatory (tick 20) orders."
+}

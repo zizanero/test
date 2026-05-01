@@ -3,6 +3,11 @@ import polarization from "./polarization/spec.json";
 import vaccination from "./vaccination/spec.json";
 import market from "./market/spec.json";
 import deliberation from "./deliberation/spec.json";
+import laborMarket from "./labor-market/spec.json";
+import orgPivot from "./org-pivot/spec.json";
+import negotiationBilateral from "./negotiation-bilateral/spec.json";
+import communityEvac from "./community-evac/spec.json";
+import cubanMissileCrisis from "./cuban-missile-crisis/spec.json";
 
 export interface TemplateSpec {
   slug: string;
@@ -80,6 +85,11 @@ const templates: TemplateSpec[] = [
   vaccination,
   market,
   deliberation,
+  laborMarket,
+  orgPivot,
+  negotiationBilateral,
+  communityEvac,
+  cubanMissileCrisis,
 ] as TemplateSpec[];
 
 export function listTemplates(): TemplateSpec[] {

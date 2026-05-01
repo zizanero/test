@@ -61,6 +61,12 @@ export function mockComplete(input: MockInput): MockOutput {
   ) {
     text = mockCausal(input, rng);
   }
+  // Scenario generator: detected by the system prompt.
+  if (
+    /simulation designer|Populace simulation specification/i.test(input.system)
+  ) {
+    text = mockScenario(input, rng);
+  }
   // Approximate token counts: chars/4.
   const tokensIn = Math.ceil((input.system.length + input.user.length) / 4);
   const tokensOut = Math.max(1, Math.ceil(text.length / 4));
@@ -188,6 +194,144 @@ function mockGameMaster(input: MockInput, _rng: () => number): string {
     arbitration: "no_conflict",
     worldUpdates: [],
     note: "Tick proceeds normally.",
+  });
+}
+
+function mockScenario(input: MockInput, _rng: () => number): string {
+  // Pattern-match the user description to pick a scenario shape.
+  const desc = input.user.toLowerCase();
+  const pick = (re: RegExp) => re.test(desc);
+
+  if (pick(/(rumor|gossip|opinion|polariz|news)/)) {
+    return JSON.stringify({
+      title: "Information cascade",
+      category: "Information",
+      description:
+        "A small town reacts to a circulating piece of news; opinions form, faction edges harden.",
+      population: {
+        classes: [
+          {
+            name: "Resident",
+            count: 30,
+            proseIdentity:
+              "A resident with moderate priors. Forms opinions through conversation and social media.",
+            initialBeliefs: { agree: 0 },
+            initialGoal: "Make sense of the news.",
+            initialLocationName: "Town square",
+          },
+          {
+            name: "Influencer",
+            count: 5,
+            proseIdentity:
+              "A locally-known voice. Speaks publicly; others weight their words more heavily.",
+            initialGoal: "Shape the narrative.",
+            initialLocationName: "Town square",
+          },
+        ],
+      },
+      world: {
+        name: "Small town",
+        width: 16,
+        height: 12,
+        locations: [
+          { name: "Town square", kind: "area", x: 8, y: 6, capacity: 60, capacity_: null },
+          { name: "Cafe", kind: "area", x: 4, y: 4, capacity: 20 },
+          { name: "Park", kind: "area", x: 12, y: 4, capacity: 30 },
+        ],
+      },
+      rules: [
+        {
+          name: "News breaks",
+          triggerKind: "tick",
+          triggerSpec: { atTick: 10 },
+          effect: {
+            kind: "inject_observation",
+            payload: {
+              text: "Breaking news: a controversial decision lands in the town's headlines.",
+              fraction: 0.7,
+            },
+          },
+        },
+      ],
+      scenario: { totalTicks: 60, fidelity: "balanced", defaultSeed: 42, costCapUsd: 3 },
+    });
+  }
+  if (pick(/(market|trade|buy|sell|price)/)) {
+    return JSON.stringify({
+      title: "Mini market",
+      category: "Markets",
+      description:
+        "Buyers and sellers meet at a small market. Watch how prices form across rounds.",
+      population: {
+        classes: [
+          {
+            name: "Buyer",
+            count: 15,
+            proseIdentity: "A buyer with a private valuation. Wants to buy below.",
+            initialLocationName: "Floor",
+          },
+          {
+            name: "Seller",
+            count: 10,
+            proseIdentity: "A seller with a private cost. Wants to sell above.",
+            initialLocationName: "Floor",
+          },
+        ],
+      },
+      world: {
+        name: "Market",
+        width: 12,
+        height: 8,
+        locations: [{ name: "Floor", kind: "area", x: 6, y: 4, capacity: 40 }],
+      },
+      rules: [
+        {
+          name: "Market clearing nudge",
+          triggerKind: "tick",
+          triggerSpec: { everyN: 5 },
+          effect: { kind: "mutate_ambient", payload: { topic: "clearing", delta: 0.2 } },
+        },
+      ],
+      scenario: { totalTicks: 40, fidelity: "cheap", defaultSeed: 13, costCapUsd: 2 },
+    });
+  }
+  // Default: a generic 12-agent town reacting to an event.
+  return JSON.stringify({
+    title: "Generic town reaction",
+    category: "Information",
+    description: "Twelve residents react to an event in a small shared world.",
+    population: {
+      classes: [
+        {
+          name: "Resident",
+          count: 12,
+          proseIdentity: "A resident with personal goals and relationships in this town.",
+          initialGoal: "Live a normal day.",
+          initialLocationName: "Square",
+        },
+      ],
+    },
+    world: {
+      name: "Town",
+      width: 12,
+      height: 8,
+      locations: [
+        { name: "Square", kind: "area", x: 6, y: 4, capacity: 40 },
+        { name: "Home", kind: "area", x: 2, y: 2, capacity: 15 },
+      ],
+    },
+    rules: [
+      {
+        name: "An event arrives",
+        triggerKind: "tick",
+        triggerSpec: { atTick: 8 },
+        effect: {
+          kind: "inject_observation",
+          payload: { text: "A noteworthy event occurs in town.", fraction: 1 },
+        },
+      },
+    ],
+    scenario: { totalTicks: 30, fidelity: "cheap", defaultSeed: 1, costCapUsd: 1 },
   });
 }
 

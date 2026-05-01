@@ -1,0 +1,69 @@
+{
+  "slug": "cuban-missile-crisis",
+  "category": "Historical counterfactual",
+  "title": "Cuban Missile Crisis decision-room",
+  "description": "October 1962 ExComm meeting. 12 advisers debate three options: blockade, airstrike, or invasion. Personalities and stated positions are known; what does the deliberation produce?",
+  "attribution": "Personalities loosely informed by published ExComm transcripts; this is a thought experiment, not a historical claim.",
+  "population": {
+    "classes": [
+      { "name": "JFK", "count": 1, "proseIdentity": "John F. Kennedy. Cautious, learns from prior failures, prefers signaling moves over irreversible ones. Sceptical of military escalation.", "initialGoal": "Find a path that removes the missiles without nuclear war.", "initialLocationName": "ExComm" },
+      { "name": "RFK", "count": 1, "proseIdentity": "Robert F. Kennedy. Loyal to JFK, slightly hawkish initially, develops a back-channel preference.", "initialGoal": "Support JFK; find creative options.", "initialLocationName": "ExComm" },
+      { "name": "McNamara", "count": 1, "proseIdentity": "Robert McNamara. Defense Secretary. Analytical, presents options with ranges and uncertainties. Initially neutral, leans toward blockade.", "initialGoal": "Frame the decision in terms of expected outcomes.", "initialLocationName": "ExComm" },
+      { "name": "Acheson", "count": 1, "proseIdentity": "Dean Acheson. Hawkish, advocates airstrike. Believes blockade is too slow.", "initialGoal": "Convince others that airstrike is the only credible option.", "initialLocationName": "ExComm" },
+      { "name": "Stevenson", "count": 1, "proseIdentity": "Adlai Stevenson. UN Ambassador. Dovish; prefers diplomatic path including a Turkey-missiles trade.", "initialGoal": "Open a diplomatic channel before military action.", "initialLocationName": "ExComm" },
+      { "name": "Bundy", "count": 1, "proseIdentity": "McGeorge Bundy. National Security Adviser. Initially leans airstrike, can pivot. Synthesizes positions.", "initialGoal": "Help JFK arrive at a coherent decision.", "initialLocationName": "ExComm" },
+      { "name": "Taylor", "count": 1, "proseIdentity": "Maxwell Taylor. Joint Chiefs Chairman. Strong preference for forceful response.", "initialGoal": "Press for the maximum acceptable military action.", "initialLocationName": "ExComm" },
+      { "name": "Rusk", "count": 1, "proseIdentity": "Dean Rusk. Secretary of State. Cautious diplomat; concerned about NATO solidarity.", "initialGoal": "Preserve the alliance while removing missiles.", "initialLocationName": "ExComm" },
+      { "name": "Ball", "count": 1, "proseIdentity": "George Ball. Under Secretary of State. Articulate skeptic of strikes; warns of moral costs.", "initialGoal": "Surface non-obvious downsides of escalation.", "initialLocationName": "ExComm" },
+      { "name": "Sorensen", "count": 1, "proseIdentity": "Theodore Sorensen. Speechwriter and adviser. Crafts the public narrative of whichever decision lands.", "initialGoal": "Find language that can be defended publicly.", "initialLocationName": "ExComm" },
+      { "name": "Dillon", "count": 1, "proseIdentity": "Douglas Dillon. Treasury Secretary. Hawkish but pragmatic; thinks about economic implications of escalation.", "initialGoal": "Press for action that preserves credibility without gratuitous cost.", "initialLocationName": "ExComm" },
+      { "name": "Thompson", "count": 1, "proseIdentity": "Llewellyn Thompson. Soviet expert. Believes Khrushchev wants an off-ramp; advocates demonstrating resolve while leaving room.", "initialGoal": "Convince others that Khrushchev needs face-saving cover.", "initialLocationName": "ExComm" }
+    ]
+  },
+  "world": {
+    "name": "White House",
+    "width": 8, "height": 6,
+    "locations": [
+      { "name": "ExComm", "kind": "area", "x": 4, "y": 3, "capacity": 20 },
+      { "name": "Hallway", "kind": "area", "x": 7, "y": 3, "capacity": 8 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "U-2 photos confirm missiles",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 1 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "U-2 imagery shows medium-range ballistic missile sites in Cuba. The President needs an option in days.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Soviet ships approaching quarantine line",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 30 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "Intelligence reports Soviet ships will reach the quarantine line in hours.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Vote on response",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 50 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "JFK calls for advisory votes: blockade, airstrike, invasion, or wait.", "fraction": 1 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 60, "fidelity": "balanced", "defaultSeed": 1962, "costCapUsd": 3 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Position drift over time" },
+      { "kind": "narrative", "title": "ExComm transcript (synthetic)" },
+      { "kind": "distribution", "title": "Final advisory votes" }
+    ]
+  },
+  "readmeMd": "# Cuban Missile Crisis\n\nA thought experiment, not a historical claim. The interesting question is which dovish or hawkish positions hold under deadline pressure at tick 30."
+}

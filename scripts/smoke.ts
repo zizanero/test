@@ -135,6 +135,28 @@ async function main() {
   console.log(`   branch produced ${childTicks} additional ticks`);
   if (childTicks < 14) throw new Error(`expected ≥14 child ticks, got ${childTicks}`);
 
+  // 6. Export PDF + notebook + CSV
+  console.log("→ exporting CSV + notebook + PDF");
+  const { exportRunCsv } = await import("@/server/export/csv");
+  const { exportRunNotebook } = await import("@/server/export/notebook");
+  const { exportRunPdf } = await import("@/server/export/pdf");
+  const csv = await exportRunCsv(firstRunId);
+  const nb = await exportRunNotebook(firstRunId);
+  const pdf = await exportRunPdf(firstRunId);
+  console.log(
+    `   csv=${csv.length}B notebook=${nb.length}B pdf=${pdf.length}B`,
+  );
+  if (csv.length < 100) throw new Error("CSV too short");
+  if (nb.length < 200) throw new Error("notebook too short");
+  if (pdf.length < 1000) throw new Error("PDF too short");
+  // Validate notebook is JSON.
+  JSON.parse(nb);
+
+  // 7. Calibration math: KS distance check.
+  const { ksDistance } = await import("@/lib/ksDistance");
+  const ks = ksDistance([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]);
+  if (ks !== 0) throw new Error("KS-distance broken: identical samples should give 0");
+
   console.log("== smoke OK ==");
   await prisma.$disconnect();
 }

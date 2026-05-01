@@ -16,7 +16,7 @@ import { detectCommunities } from "./emergence/communityDetection";
 import { snapshot } from "./snapshot";
 import { recordCost, exceededCap } from "./cost";
 import { publish } from "./runners/eventBus";
-import { mulberry32, hash32 } from "./rng";
+import { mulberry32 } from "./rng";
 import { derivePersonality } from "./personality";
 
 const EMERGENCE_INTERVAL = 5;
@@ -58,8 +58,8 @@ export async function runRunLoop(
     const newMemoryIds: string[] = [];
     const newDecisionIds: string[] = [];
 
-    // Shuffle agents deterministically per tick.
-    const shuffleRng = mulberry32(hash32(runId) ^ tick);
+    // Shuffle agents deterministically per tick (run-stable: uses run.seed, not runId cuid).
+    const shuffleRng = mulberry32(run.seed ^ tick ^ 0xC0FFEE);
     const order = ctx.agents
       .map((a) => ({ a, k: shuffleRng() }))
       .sort((x, y) => x.k - y.k)
@@ -276,6 +276,7 @@ async function hydrateContext(
   const agents: AgentRuntime[] = dbAgents.map((a) => ({
     id: a.id,
     classId: a.classId,
+    seedKey: a.seedKey ?? a.displayName,
     displayName: a.displayName,
     proseIdentity: a.proseIdentity,
     structured: parseJson(a.structured),
@@ -283,7 +284,7 @@ async function hydrateContext(
     goal: a.goal,
     currentLocationId: a.currentLocationId,
     status: (a.status as "alive" | "dead") ?? "alive",
-    personality: derivePersonality(a.id, a.proseIdentity),
+    personality: derivePersonality(a.seedKey ?? a.displayName, a.proseIdentity),
   }));
 
   const locations: LocationRuntime[] = allLocations.map((l) => ({

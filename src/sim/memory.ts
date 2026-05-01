@@ -2,6 +2,11 @@ import { prisma } from "@/server/db";
 import { embed, cosine } from "./embeddings";
 import { complete } from "./llm";
 import type { MemoryRow } from "./types";
+import {
+  renderImportancePrompt,
+  IMPORTANCE_PROMPT_VERSION,
+} from "./llm/prompts";
+import { ImportanceSchema, extractJson } from "./llm/parser";
 
 const RECENCY_HALF_LIFE_TICKS = 24;
 const IMPORTANCE_DEFAULT = 5;
@@ -44,22 +49,22 @@ async function gradeImportance(
   content: string,
   ctx: { runId: string; tick: number },
 ): Promise<number> {
-  // Quick heuristic shortcut for very short / utility memories — saves tokens.
   if (content.length < 24) return 2;
   try {
+    const prompt = renderImportancePrompt(content);
     const out = await complete({
       kind: "importance_grade",
       modelTier: "routine",
-      system:
-        "You grade memory importance from 1 (mundane) to 10 (life-altering). Return JSON: {\"importance\":N}.",
-      user: `Memory: "${content}"\nReturn the JSON only.`,
+      promptName: prompt.promptName,
+      promptVersion: prompt.promptVersion,
+      system: prompt.system,
+      user: prompt.user,
       seed: ctx.tick,
       temperature: 0,
     });
-    const parsed = safeJson(out.text);
-    if (parsed && typeof parsed.importance === "number") {
-      return clamp(parsed.importance, 1, 10);
-    }
+    const json = extractJson(out.text);
+    const parsed = json !== null ? ImportanceSchema.safeParse(json) : null;
+    if (parsed?.success) return clamp(parsed.data.importance, 1, 10);
   } catch {
     // fall through
   }
@@ -68,16 +73,6 @@ async function gradeImportance(
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
-}
-
-function safeJson(s: string): { importance?: number } | null {
-  try {
-    const m = s.match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    return JSON.parse(m[0]);
-  } catch {
-    return null;
-  }
 }
 
 export async function retrieve(
@@ -101,7 +96,7 @@ export async function retrieve(
   const qEmb = embed(query);
   const scored = memories.map((m) => {
     const ageTicks = Math.max(0, ctx.tick - m.tick);
-    const recency = Math.pow(0.5, ageTicks / RECENCY_HALF_LIFE_TICKS); // 0..1
+    const recency = Math.pow(0.5, ageTicks / RECENCY_HALF_LIFE_TICKS);
     const importance01 = clamp(m.importance / 10, 0, 1);
     const emb = JSON.parse(m.embedding) as number[];
     const relevance = clamp((cosine(qEmb, emb) + 1) / 2, 0, 1);
@@ -112,7 +107,6 @@ export async function retrieve(
   scored.sort((a, b) => b.score - a.score);
   const top = scored.slice(0, k);
 
-  // Update retrieval stats.
   const ids = top.map(({ m }) => m.id);
   await prisma.memory.updateMany({
     where: { id: { in: ids } },
@@ -160,3 +154,5 @@ export async function recentImportanceSum(
   });
   return memories.reduce((s, m) => s + m.importance, 0);
 }
+
+export { IMPORTANCE_PROMPT_VERSION };

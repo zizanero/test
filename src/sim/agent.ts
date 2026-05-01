@@ -7,6 +7,11 @@ import type {
 import { complete } from "./llm";
 import { retrieve } from "./memory";
 import { hash32 } from "./rng";
+import {
+  renderDecisionPrompt,
+  DECISION_PROMPT_VERSION,
+} from "./llm/prompts";
+import { DecisionSchema, extractJson } from "./llm/parser";
 
 // Build the menu of actions an agent can take this tick.
 export function buildActionMenu(
@@ -16,7 +21,6 @@ export function buildActionMenu(
   const here = agent.currentLocationId;
   const items: ActionMenuItem[] = [];
 
-  // Movement actions: nearest few locations (simple heuristic).
   const sorted = ctx.locations
     .filter((l) => l.kind !== "object" && l.id !== here)
     .map((l) => {
@@ -38,7 +42,6 @@ export function buildActionMenu(
     });
   }
 
-  // Speak: if any other agents co-located.
   const coLocated = (ctx.occupancy.get(here ?? "") ?? []).filter(
     (id) => id !== agent.id,
   );
@@ -54,7 +57,6 @@ export function buildActionMenu(
       });
   }
 
-  // Wait
   items.push({
     id: "wait",
     kind: "wait",
@@ -62,7 +64,6 @@ export function buildActionMenu(
     prior: 0.2,
   });
 
-  // Vote actions in deliberation phase
   if (ctx.templateSlug === "deliberation" && ctx.tick >= 50) {
     items.push({
       id: "vote:yes",
@@ -83,78 +84,42 @@ export function buildActionMenu(
   return items;
 }
 
-// Build the prompt the agent's LLM call sees.
-function buildAgentPrompts(args: {
-  agent: AgentRuntime;
-  ctx: RunContext;
-  recalled: { id: string; content: string }[];
-  menu: ActionMenuItem[];
-  observations: string[];
-}) {
-  const { agent, ctx, recalled, menu, observations } = args;
-  const system = `You are ${agent.displayName}.
-
-Identity: ${agent.proseIdentity}
-
-Current goal: ${agent.goal ?? "(none)"}
-Current location: ${ctx.locations.find((l) => l.id === agent.currentLocationId)?.name ?? "unknown"}
-Tick: ${ctx.tick} of ${ctx.totalTicks}
-
-You decide your next action by picking from the menu. Reply ONLY with JSON of the form:
-{"actionId":"<id>","actionKind":"<kind>","actionDescription":"<desc>","actionParams":{...},"reasoning":"...","reasoningSummary":"<one sentence>"}.
-Cite memories you used like [memory_id].`;
-
-  const userParts: string[] = [];
-  if (observations.length > 0) {
-    userParts.push("Observations this tick:\n" + observations.map((o) => "- " + o).join("\n"));
-  }
-  if (recalled.length > 0) {
-    userParts.push(
-      "Recalled memories:\n" +
-        recalled.map((m) => `[${m.id}] ${m.content}`).join("\n"),
-    );
-  }
-  userParts.push(
-    "Action menu:\n" +
-      menu.map((m) => `- ${m.id}: ${m.description} (kind: ${m.kind})`).join("\n"),
-  );
-  userParts.push("Pick the best action and respond with JSON only.");
-  return { system, user: userParts.join("\n\n") };
-}
-
 export async function stepAgent(
   agent: AgentRuntime,
   ctx: RunContext,
   observations: string[],
 ): Promise<DecisionResult> {
-  // Build a query for retrieval from current goal + most-recent observations.
   const query =
     [agent.goal ?? "", ...observations.slice(-3)].filter(Boolean).join(" ") ||
     agent.proseIdentity.slice(0, 120);
   const recalled = await retrieve(agent.id, query, ctx, { k: 4 });
   const menu = buildActionMenu(agent, ctx);
-  const prompts = buildAgentPrompts({
+  const locationName =
+    ctx.locations.find((l) => l.id === agent.currentLocationId)?.name ?? "unknown";
+
+  const prompt = renderDecisionPrompt({
     agent,
-    ctx,
+    ctx: { tick: ctx.tick, totalTicks: ctx.totalTicks, locationName },
     recalled: recalled.map((m) => ({ id: m.id, content: m.content })),
     menu,
     observations,
   });
 
-  const seed = hash32(agent.id) ^ ctx.tick ^ ctx.seed;
+  const seed = hash32(agent.seedKey) ^ ctx.tick ^ ctx.seed;
   const out = await complete({
     kind: "decision",
     modelTier: agent.personality[1] > 0.7 ? "reflection" : "routine",
-    system: prompts.system,
-    user: prompts.user,
+    promptName: prompt.promptName,
+    promptVersion: prompt.promptVersion,
+    system: prompt.system,
+    user: prompt.user,
     seed,
     temperature: 0.6,
     meta: {
       agent,
       actionMenu: menu,
       retrievedMemoryIds: recalled.map((m) => m.id),
-      location:
-        ctx.locations.find((l) => l.id === agent.currentLocationId)?.name ?? "unknown",
+      location: locationName,
     },
   });
 
@@ -188,28 +153,18 @@ function parseDecision(
   reasoning: string;
   reasoningSummary: string;
 } {
-  try {
-    const m = text.match(/\{[\s\S]*\}/);
-    if (m) {
-      const j = JSON.parse(m[0]) as {
-        actionId?: string;
-        actionKind?: ActionMenuItem["kind"];
-        actionDescription?: string;
-        actionParams?: Record<string, unknown>;
-        reasoning?: string;
-        reasoningSummary?: string;
-      };
-      const fallback = menu.find((x) => x.id === j.actionId) ?? menu[0];
-      return {
-        actionKind: (j.actionKind ?? fallback.kind) as ActionMenuItem["kind"],
-        actionDescription: j.actionDescription ?? fallback.description,
-        actionParams: j.actionParams ?? fallback.params,
-        reasoning: j.reasoning ?? "(no reasoning)",
-        reasoningSummary: j.reasoningSummary ?? fallback.description,
-      };
-    }
-  } catch {
-    /* fall through */
+  const json = extractJson(text);
+  const parsed = json !== null ? DecisionSchema.safeParse(json) : null;
+  if (parsed?.success) {
+    const j = parsed.data;
+    const fallback = menu.find((x) => x.id === j.actionId) ?? menu[0];
+    return {
+      actionKind: (j.actionKind ?? fallback.kind) as ActionMenuItem["kind"],
+      actionDescription: j.actionDescription ?? fallback.description,
+      actionParams: j.actionParams ?? fallback.params,
+      reasoning: j.reasoning ?? "(no reasoning)",
+      reasoningSummary: j.reasoningSummary ?? fallback.description,
+    };
   }
   const fb = menu[0] ?? {
     kind: "wait" as const,
@@ -224,3 +179,6 @@ function parseDecision(
     reasoningSummary: fb.description,
   };
 }
+
+// Note: prompt name/version exported for callers that pin into specSnapshot.
+export { DECISION_PROMPT_VERSION };

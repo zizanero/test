@@ -67,6 +67,7 @@ model Agent {
   class             AgentClass   @relation(fields: [classId], references: [id])
   runId             String?
   run               Run?         @relation(fields: [runId], references: [id])
+  seedKey           String?      // stable across DB resets: "${className}::${ordinal}"
   displayName       String
   proseIdentity     String
   structured        String
@@ -130,14 +131,17 @@ model RuleCondition {
 }
 
 model Run {
-  id             String       @id @default(cuid())
-  simulationId   String
-  simulation     Simulation   @relation(fields: [simulationId], references: [id])
-  parentRunId    String?
-  parent         Run?         @relation("RunTree", fields: [parentRunId], references: [id])
-  branches       Run[]        @relation("RunTree")
-  branchedAtTick Int?
-  label          String
+  id                    String       @id @default(cuid())
+  simulationId          String
+  simulation            Simulation   @relation(fields: [simulationId], references: [id])
+  parentRunId           String?
+  parent                Run?         @relation("RunTree", fields: [parentRunId], references: [id])
+  branches              Run[]        @relation("RunTree")
+  branchedAtTick        Int?
+  // Counterfactual replicates share a group id and a perturbation label.
+  counterfactualGroupId String?
+  perturbationLabel     String?
+  label                 String
   status         String
   seed           Int
   totalTicks     Int

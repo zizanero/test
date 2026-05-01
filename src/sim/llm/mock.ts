@@ -28,8 +28,10 @@ export interface MockOutput {
 }
 
 export function mockComplete(input: MockInput): MockOutput {
-  const seed = (hash32(input.system) ^ hash32(input.user) ^ input.seed) >>> 0;
-  const rng = mulberry32(seed);
+  // Seed depends ONLY on the caller-provided input.seed. Prompt text varies
+  // across runs because it contains memory cuids; mixing it into the seed
+  // would break run-level determinism for the engine.
+  const rng = mulberry32(input.seed >>> 0);
   let text = "";
   switch (input.kind) {
     case "decision":
@@ -51,6 +53,14 @@ export function mockComplete(input: MockInput): MockOutput {
       text = mockGameMaster(input, rng);
       break;
   }
+  // Causal analysis is routed through "game_master" tier in production but the
+  // prompt schema is recognizable: detect it and replace.
+  if (
+    input.kind === "game_master" &&
+    /careful analyst|but-for causes|no_evidence/.test(input.system)
+  ) {
+    text = mockCausal(input, rng);
+  }
   // Approximate token counts: chars/4.
   const tokensIn = Math.ceil((input.system.length + input.user.length) / 4);
   const tokensOut = Math.max(1, Math.ceil(text.length / 4));
@@ -71,11 +81,13 @@ function mockDecision(input: MockInput, rng: () => number): string {
     };
   } else {
     // Weight by prior + personality alignment (deterministic).
-    const weights = menu.map((m) => {
+    // Use kind+index+seedKey instead of m.id+agent.id, since both contain
+    // cuids that change between fresh runs of the same simulation.
+    const weights = menu.map((m, idx) => {
       let w = m.prior ?? 0.5;
       if (agent) {
         const persHash =
-          (hash32(m.id + ":" + agent.id) % 1000) / 1000; // 0..1
+          (hash32(`${m.kind}:${idx}:${agent.seedKey}`) % 1000) / 1000; // 0..1
         const extraversion = agent.personality[2];
         if (m.kind === "speak") w += 0.6 * extraversion + 0.3 * persHash;
         if (m.kind === "move") w += 0.4 * agent.personality[0] + 0.2 * persHash;
@@ -172,10 +184,58 @@ function mockInterview(input: MockInput, rng: () => number): string {
 }
 
 function mockGameMaster(input: MockInput, _rng: () => number): string {
-  // Game master arbitration / world update. Returns a structured judgement.
   return JSON.stringify({
     arbitration: "no_conflict",
     worldUpdates: [],
     note: "Tick proceeds normally.",
   });
+}
+
+function mockCausal(input: MockInput, rng: () => number): string {
+  const memIds = Array.from(input.user.matchAll(/\[([a-z0-9]{8,32})\]\s/g)).map((m) => m[1]);
+  const neighborhoodSection = input.user.match(/Neighborhood agents:\n([\s\S]*?)(?:\n\n|$)/);
+  const agentIds = neighborhoodSection
+    ? Array.from(neighborhoodSection[1].matchAll(/\[([a-z0-9]{8,32})\]/g)).map((m) => m[1])
+    : [];
+  const tickRefs = Array.from(input.user.matchAll(/\[t:(\d+)\]/g))
+    .map((m) => m[1])
+    .slice(0, 4);
+  if (memIds.length === 0 && agentIds.length === 0) {
+    return JSON.stringify({
+      narrative: "no causal evidence found in trace",
+      causes: [],
+      no_evidence: true,
+    });
+  }
+  const top = memIds.slice(0, 3);
+  const ag = agentIds.slice(0, 2);
+  const tickCite = tickRefs.length ? `[t:${tickRefs[0]}]` : "";
+  const narrative = `Based on the recalled context ${top.map((id) => `[m:${id}]`).join(" and ")}${ag.length ? `, with ${ag.map((id) => `[a:${id}]`).join(" and ")} present` : ""}${tickCite ? ` ${tickCite}` : ""}, the agent's choice follows from the recent observation pattern. The retrieved memories provide the only causal link available in this trace.`;
+  const causes: {
+    label: string;
+    confidence: number;
+    evidenceMemoryIds: string[];
+    evidenceAgentIds: string[];
+    perturbation: string;
+  }[] = [
+    {
+      label: "Recently retrieved memory shaped attention",
+      confidence: 0.55 + rng() * 0.2,
+      evidenceMemoryIds: top,
+      evidenceAgentIds: [],
+      perturbation: top.length
+        ? `What if memory [m:${top[0]}] were never formed?`
+        : "What if the most-recent observation didn't occur?",
+    },
+  ];
+  if (ag.length > 0) {
+    causes.push({
+      label: "Co-located agent influence",
+      confidence: 0.4 + rng() * 0.2,
+      evidenceMemoryIds: [],
+      evidenceAgentIds: ag,
+      perturbation: `What if agent [a:${ag[0]}] were elsewhere this tick?`,
+    });
+  }
+  return JSON.stringify({ narrative, causes, no_evidence: false });
 }

@@ -12,6 +12,7 @@ export type LlmCallKind =
 export interface AgentRuntime {
   id: string;
   classId: string;
+  seedKey: string;
   displayName: string;
   proseIdentity: string;
   structured: Record<string, unknown>;

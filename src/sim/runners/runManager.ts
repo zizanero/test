@@ -1,6 +1,8 @@
 import { prisma } from "@/server/db";
 import { runRunLoop } from "@/sim/engine";
 import { spawnAgentsForRun } from "@/server/instantiate";
+import { PROMPT_VERSIONS } from "@/sim/llm/prompts";
+import { env } from "@/lib/env";
 
 interface ActiveRun {
   abort: AbortController;
@@ -23,7 +25,24 @@ export interface StartArgs {
 export async function startRun(args: StartArgs): Promise<{ runId: string }> {
   const sim = await prisma.simulation.findUnique({ where: { id: args.simulationId } });
   if (!sim) throw new Error("simulation not found");
-  const specSnapshot = sim.spec;
+  // Enrich spec snapshot with prompt + model pins for reproducibility.
+  const baseSpec = JSON.parse(sim.spec) as Record<string, unknown>;
+  const specSnapshot = JSON.stringify({
+    ...baseSpec,
+    pins: {
+      promptVersions: PROMPT_VERSIONS,
+      models: {
+        routine: env.LLM_MODEL_ROUTINE,
+        reflection: env.LLM_MODEL_REFLECTION,
+        gameMaster: env.LLM_MODEL_GAMEMASTER,
+      },
+      llmMode: env.resolvedLlmMode,
+      deterministic: env.SIM_DETERMINISTIC,
+      embeddingDim: 32,
+      memoryHalfLifeTicks: 24,
+      reflectionThreshold: 150,
+    },
+  });
 
   const run = await prisma.run.create({
     data: {
@@ -128,6 +147,7 @@ async function branchAgents(args: {
       data: {
         classId: pa.classId,
         runId: args.childRunId,
+        seedKey: pa.seedKey,
         displayName: pa.displayName,
         proseIdentity: pa.proseIdentity,
         structured: pa.structured,

@@ -41,7 +41,7 @@ describe("mock LLM determinism", () => {
     expect(a.text).toBe(b.text);
   });
 
-  it("different seeds produce different output", async () => {
+  it("different seeds produce diverse outputs across a sample", async () => {
     const base = {
       kind: "decision" as const,
       modelTier: "routine" as const,
@@ -56,11 +56,13 @@ describe("mock LLM determinism", () => {
         })),
       },
     };
-    const r1 = await complete({ ...base, seed: 1 });
-    cacheReset();
-    const r2 = await complete({ ...base, seed: 2 });
-    // It's possible (but unlikely) two different seeds produce same pick;
-    // ensure outputs are at least distinct strings most of the time.
-    expect(r1.text === r2.text).toBe(false);
+    const outputs = new Set<string>();
+    for (let s = 1; s <= 20; s++) {
+      cacheReset();
+      const r = await complete({ ...base, seed: s });
+      outputs.add(r.text);
+    }
+    // Across 20 seeds and 5 menu items, we should see >= 3 distinct picks.
+    expect(outputs.size).toBeGreaterThanOrEqual(3);
   });
 });

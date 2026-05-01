@@ -157,6 +157,106 @@ async function main() {
   const ks = ksDistance([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]);
   if (ks !== 0) throw new Error("KS-distance broken: identical samples should give 0");
 
+  // 8. Causal interrogation (analyst with refusal pattern).
+  console.log("→ causal analysis on first agent");
+  const { analyzeWhy } = await import("@/sim/causal");
+  const firstAgent = await prisma.agent.findFirst({ where: { runId: firstRunId } });
+  if (!firstAgent) throw new Error("no agents in first run");
+  const lastDecision = await prisma.decision.findFirst({
+    where: { runId: firstRunId, agentId: firstAgent.id },
+    orderBy: { tick: "desc" },
+  });
+  if (!lastDecision) throw new Error("no decision found");
+  const why = await analyzeWhy({
+    runId: firstRunId,
+    agentId: firstAgent.id,
+    tick: lastDecision.tick,
+    decisionId: lastDecision.id,
+  });
+  console.log(
+    `   narrative=${why.narrative.length}c causes=${why.causes.length} noEvidence=${why.noEvidence} promptVersion=${why.promptVersion}`,
+  );
+  if (!why.narrative || why.narrative.length === 0) throw new Error("empty narrative");
+  if (why.promptVersion !== "causal/v1") throw new Error("prompt pin mismatch");
+
+  // 9. Counterfactual: 3 control + 3 treatment from tick 10, 8-tick horizon, decision_count metric.
+  console.log("→ counterfactual @ tick 10 (3+3 replicates, 8t horizon)");
+  const { runCounterfactual } = await import("@/sim/counterfactual");
+  const cf = await runCounterfactual({
+    parentRunId: firstRunId,
+    atTick: 10,
+    replicates: 3,
+    horizonTicks: 8,
+    metric: "decision_count",
+    perturbation: {
+      kind: "inject_observation",
+      text: "Surprise: a surprise visitor arrives at the assembly.",
+      fraction: 1,
+    },
+    perturbationLabel: "surprise visitor",
+  });
+  console.log(
+    `   group=${cf.groupId} ctrl=[${cf.control.join(",")}] treat=[${cf.treatment.join(",")}] Δ=${cf.effectSize.toFixed(2)}±${cf.effectStdErr.toFixed(2)}`,
+  );
+  if (cf.control.length !== 3) throw new Error(`expected 3 control replicates, got ${cf.control.length}`);
+  if (cf.treatment.length !== 3) throw new Error(`expected 3 treatment replicates, got ${cf.treatment.length}`);
+  // Each child run should be tagged with the counterfactual group.
+  const taggedCount = await prisma.run.count({
+    where: { counterfactualGroupId: cf.groupId },
+  });
+  if (taggedCount !== 6) throw new Error(`expected 6 tagged runs, got ${taggedCount}`);
+
+  // 10. Determinism: byte-identical Tick.snapshot for two fresh runs with same seed.
+  // The earlier check used DB resets that re-cuid'd agent IDs; this one uses the same
+  // sim/agents and just starts two fresh runs.
+  console.log("→ determinism: two fresh runs of the same sim with seed=99");
+  const detA = await startRun({
+    simulationId: sim.simulationId,
+    seed: 99,
+    totalTicks: 12,
+    fidelity: "cheap",
+    label: "det-A",
+  });
+  await awaitRun(detA.runId);
+  const detB = await startRun({
+    simulationId: sim.simulationId,
+    seed: 99,
+    totalTicks: 12,
+    fidelity: "cheap",
+    label: "det-B",
+  });
+  await awaitRun(detB.runId);
+  const tA = await prisma.tick.findUnique({
+    where: { runId_index: { runId: detA.runId, index: 11 } },
+  });
+  const tB = await prisma.tick.findUnique({
+    where: { runId_index: { runId: detB.runId, index: 11 } },
+  });
+  if (!tA || !tB) throw new Error("missing det-tick");
+  // Compare ambient + per-(seedKey)-location-distribution. We can't use agent.id directly
+  // because cuids change, but we map id→seedKey to verify behaviour is deterministic.
+  const agentsA = await prisma.agent.findMany({ where: { runId: detA.runId } });
+  const agentsB = await prisma.agent.findMany({ where: { runId: detB.runId } });
+  const idToSeedA = new Map(agentsA.map((a) => [a.id, a.seedKey ?? a.displayName]));
+  const idToSeedB = new Map(agentsB.map((a) => [a.id, a.seedKey ?? a.displayName]));
+  const sA = JSON.parse(tA.snapshot) as { agents: { id: string; locationId: string | null }[] };
+  const sB = JSON.parse(tB.snapshot) as { agents: { id: string; locationId: string | null }[] };
+  const distA = sA.agents
+    .map((x) => `${idToSeedA.get(x.id)}@${x.locationId}`)
+    .sort()
+    .join("|");
+  const distB = sB.agents
+    .map((x) => `${idToSeedB.get(x.id)}@${x.locationId}`)
+    .sort()
+    .join("|");
+  const matches = distA === distB;
+  console.log(`   determinism by seedKey at tick 11: ${matches ? "MATCH" : "DIVERGE"}`);
+  if (!matches) {
+    console.log(`     A: ${distA.slice(0, 200)}`);
+    console.log(`     B: ${distB.slice(0, 200)}`);
+    throw new Error("non-deterministic across fresh runs of same sim with same seed");
+  }
+
   console.log("== smoke OK ==");
   await prisma.$disconnect();
 }

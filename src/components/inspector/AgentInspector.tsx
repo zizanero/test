@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useObserverStore } from "@/store/observerStore";
-import { Pin, MessageSquare, ChevronDown, ChevronRight, Brain, Sparkles, Coins, Network } from "lucide-react";
+import { Pin, MessageSquare, ChevronDown, ChevronRight, Brain, Sparkles, Coins, Network, HelpCircle } from "lucide-react";
+import { WhySheet } from "@/components/causal/WhySheet";
 
 interface InspectorPayload {
   agent: {
@@ -67,6 +68,7 @@ export function AgentInspector({
 }) {
   const [data, setData] = useState<InspectorPayload | null>(null);
   const [loading, setLoading] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const togglePin = useObserverStore((s) => s.togglePin);
   const pinned = useObserverStore((s) => s.pinnedAgentIds);
 
@@ -181,11 +183,32 @@ export function AgentInspector({
         defaultOpen
       >
         {data.decisions[0] ? (
-          <DecisionView d={data.decisions[0]} memories={data.memories} />
+          <>
+            <DecisionView d={data.decisions[0]} memories={data.memories} />
+            <button
+              type="button"
+              onClick={() => setWhyOpen(true)}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-bg-3 bg-bg-2 px-2 py-1 text-2xs text-ink-1 hover:border-bg-4 hover:text-accent"
+            >
+              <HelpCircle className="h-3 w-3" />
+              Why did {data.agent.displayName} do this?
+            </button>
+          </>
         ) : (
           <div className="text-2xs text-ink-3">No decisions yet.</div>
         )}
       </Section>
+
+      {whyOpen && data.decisions[0] && (
+        <WhySheet
+          runId={runId}
+          agentId={data.agent.id}
+          agentName={data.agent.displayName}
+          tick={data.decisions[0].tick}
+          decisionId={data.decisions[0].id}
+          onClose={() => setWhyOpen(false)}
+        />
+      )}
 
       <Section title={`Memory store (${data.memories.length})`}>
         <ul className="space-y-1">

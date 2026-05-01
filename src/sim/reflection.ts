@@ -1,7 +1,12 @@
 import { prisma } from "@/server/db";
 import { complete } from "./llm";
 import { embed } from "./embeddings";
-import { recentImportanceSum, retrieve } from "./memory";
+import { recentImportanceSum } from "./memory";
+import {
+  renderReflectionPrompt,
+  REFLECTION_PROMPT_VERSION,
+} from "./llm/prompts";
+import { ReflectionSchema, extractJson } from "./llm/parser";
 
 const REFLECTION_THRESHOLD = 150;
 const REFLECTION_WINDOW = 50;
@@ -26,7 +31,6 @@ export async function shouldReflect(
     Math.max(0, tick - REFLECTION_WINDOW),
     tick,
   );
-  // Also require we haven't reflected too recently.
   const recentReflection = await prisma.reflection.findFirst({
     where: { agentId, runId, tick: { gte: tick - 10 } },
   });
@@ -41,7 +45,6 @@ export async function generateReflection(args: {
   agentName: string;
   proseIdentity: string;
 }): Promise<ReflectionRow[]> {
-  // Gather top recent memories with importance ≥ 4 (Park's rule).
   const recent = await prisma.memory.findMany({
     where: {
       agentId: args.agentId,
@@ -58,27 +61,29 @@ export async function generateReflection(args: {
     .map((m) => `[${m.id}] (importance ${m.importance.toFixed(0)}): ${m.content}`)
     .join("\n");
 
+  const prompt = renderReflectionPrompt({
+    agentName: args.agentName,
+    proseIdentity: args.proseIdentity,
+    memoriesBlock,
+  });
+
   const out = await complete({
     kind: "reflection",
     modelTier: "reflection",
+    promptName: prompt.promptName,
+    promptVersion: prompt.promptVersion,
     seed: args.tick,
     temperature: 0.4,
-    system: `You are ${args.agentName}. Identity:\n${args.proseIdentity}\n\nGiven recent memories, write 3 high-level insights. Each insight should cite 2-3 memory IDs. Return JSON: {"insights":[{"insight":"...","evidenceMemoryIds":["...","..."],"importance":7},...]}.`,
-    user: `Memories from your recent life:\n${memoriesBlock}\n\nWhat do you notice? Return JSON only.`,
+    system: prompt.system,
+    user: prompt.user,
   });
 
-  const parsed = safeJson(out.text);
-  if (!parsed?.insights) return [];
+  const json = extractJson(out.text);
+  const parsed = json !== null ? ReflectionSchema.safeParse(json) : null;
+  if (!parsed?.success) return [];
 
-  // Resolve possible parent reflection: pick top earlier reflection by retrieval relevance.
   const created: ReflectionRow[] = [];
-  for (const ins of parsed.insights.slice(0, 5)) {
-    if (typeof ins?.insight !== "string") continue;
-    const evidence = Array.isArray(ins.evidenceMemoryIds)
-      ? ins.evidenceMemoryIds.filter((x: unknown): x is string => typeof x === "string")
-      : [];
-
-    // Find a parent reflection (most relevant earlier reflection).
+  for (const ins of parsed.data.insights.slice(0, 5)) {
     let parentReflectionId: string | null = null;
     const earlier = await prisma.reflection.findMany({
       where: { agentId: args.agentId, runId: args.runId, tick: { lt: args.tick } },
@@ -107,14 +112,12 @@ export async function generateReflection(args: {
         agentId: args.agentId,
         tick: args.tick,
         insight: ins.insight,
-        evidenceMemoryIds: JSON.stringify(evidence),
+        evidenceMemoryIds: JSON.stringify(ins.evidenceMemoryIds),
         parentReflectionId,
-        importance: clamp(typeof ins.importance === "number" ? ins.importance : 6, 1, 10),
+        importance: clamp(ins.importance, 1, 10),
       },
     });
 
-    // Also write the reflection back into the memory store (as Park does), so future
-    // retrieval can surface insights, not just observations.
     await prisma.memory.create({
       data: {
         runId: args.runId,
@@ -124,14 +127,14 @@ export async function generateReflection(args: {
         content: ins.insight,
         importance: row.importance,
         embedding: JSON.stringify(embed(ins.insight)),
-        parentIds: JSON.stringify(evidence),
+        parentIds: JSON.stringify(ins.evidenceMemoryIds),
       },
     });
 
     created.push({
       id: row.id,
       insight: row.insight,
-      evidenceMemoryIds: evidence,
+      evidenceMemoryIds: ins.evidenceMemoryIds,
       parentReflectionId,
       importance: row.importance,
     });
@@ -143,12 +146,4 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function safeJson(s: string): { insights?: { insight: string; evidenceMemoryIds: string[]; importance: number }[] } | null {
-  try {
-    const m = s.match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    return JSON.parse(m[0]);
-  } catch {
-    return null;
-  }
-}
+export { REFLECTION_PROMPT_VERSION };

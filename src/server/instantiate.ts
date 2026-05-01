@@ -123,6 +123,7 @@ export async function spawnAgentsForRun(args: {
           data: {
             classId: cls.id,
             runId: args.runId,
+            seedKey: `${cls.name}::${i}`,
             displayName: display,
             proseIdentity: prose,
             structured: cls.structured,

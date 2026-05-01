@@ -1,0 +1,111 @@
+{
+  "slug": "smallville",
+  "category": "Information & opinion dynamics",
+  "title": "Smallville (25 agents)",
+  "description": "A reproduction of Park et al. 2023's generative-agent town. Isabella Rodriguez announces a Valentine's Day party at Hobbs Cafe; watch the cascade of invitations spread.",
+  "attribution": "Adapted from Park, Joon Sung et al. 2023, 'Generative Agents: Interactive Simulacra of Human Behavior.'",
+  "population": {
+    "classes": [
+      { "name": "Isabella", "count": 1, "proseIdentity": "Isabella Rodriguez. Owner of Hobbs Cafe. Warm, sociable, organizes the town's small events. She's been planning a low-key Valentine's Day party at her cafe and wants to invite her regulars.", "initialGoal": "Plan and promote the Valentine's Day party at Hobbs Cafe.", "initialLocationName": "Hobbs Cafe" },
+      { "name": "Maria", "count": 1, "proseIdentity": "Maria Lopez. Graduate student in physics. Quiet, curious, more comfortable with books than crowds, but loyal to her close friends. She has a quiet crush on Klaus.", "initialGoal": "Make progress on her dissertation chapter.", "initialLocationName": "Dorm" },
+      { "name": "Klaus", "count": 1, "proseIdentity": "Klaus Mueller. Sociology PhD student. Dry humor, observant, often the last to know about social events because he reads in the park. Friendly with Maria.", "initialGoal": "Finish his draft on gentrification.", "initialLocationName": "Park" },
+      { "name": "Tom", "count": 1, "proseIdentity": "Tom Moreno. Bartender at the Willow's pub. Outgoing, gossip-loving, knows everyone's business and shares too much of it.", "initialGoal": "Open the pub and gather the night's gossip.", "initialLocationName": "Town Square" },
+      { "name": "Adam", "count": 1, "proseIdentity": "Adam Smith. Economics professor. Ambitious, slightly self-important, talks in jargon. Recently divorced; lonely but won't admit it.", "initialGoal": "Prepare lecture on labor markets.", "initialLocationName": "Lecture Hall" },
+      { "name": "Eddy", "count": 1, "proseIdentity": "Eddy Lin. Music composer, lives in the dorm. Sensitive, easily distracted, falls in love often.", "initialGoal": "Compose a new piece.", "initialLocationName": "Dorm" },
+      { "name": "John", "count": 1, "proseIdentity": "John Lin. Eddy's father. Pharmacist. Steady, practical, worries about his son.", "initialGoal": "Open the pharmacy.", "initialLocationName": "Town Square" },
+      { "name": "Mei", "count": 1, "proseIdentity": "Mei Lin. Eddy's mother. Patient, kind, an accomplished gardener.", "initialGoal": "Tend the cafe garden.", "initialLocationName": "Hobbs Cafe" },
+      { "name": "Wolfgang", "count": 1, "proseIdentity": "Wolfgang Schulz. Retired engineer. Skeptical, methodical, always carries a notebook of small grievances.", "initialGoal": "Read newspapers in the park.", "initialLocationName": "Park" },
+      { "name": "Jennifer", "count": 1, "proseIdentity": "Jennifer Moore. Painter. Reserved, deeply observant, paints scenes of the town from memory.", "initialGoal": "Paint the cafe at golden hour.", "initialLocationName": "Hobbs Cafe" },
+      { "name": "Yuriko", "count": 1, "proseIdentity": "Yuriko Yamamoto. Yoga instructor, runs the gym's mindfulness class. Calm, grounded, careful about commitments.", "initialGoal": "Lead the morning class.", "initialLocationName": "Gym" },
+      { "name": "Carlos", "count": 1, "proseIdentity": "Carlos Gomez. Local journalist. Sharp, social, follows leads obsessively. Loves a good party as a story angle.", "initialGoal": "File his weekly column.", "initialLocationName": "Town Square" },
+      { "name": "Ayesha", "count": 1, "proseIdentity": "Ayesha Khan. Med student. Rushed, sleep-deprived, but warm with her close friends. Overlaps schedules with Maria.", "initialGoal": "Survive her rotation.", "initialLocationName": "Lecture Hall" },
+      { "name": "Latoya", "count": 1, "proseIdentity": "Latoya Williams. Bookstore owner. Funny, opinionated, deeply rooted in town history.", "initialGoal": "Run the bookstore.", "initialLocationName": "Town Square" },
+      { "name": "Hailey", "count": 1, "proseIdentity": "Hailey Johnson. College freshman. Eager, naive, in love with the idea of being in love.", "initialGoal": "Make new friends.", "initialLocationName": "Dorm" },
+      { "name": "Sam", "count": 1, "proseIdentity": "Sam Moore. Construction worker. Practical, generous, ham-handed in social situations.", "initialGoal": "Finish work and stop by the pub.", "initialLocationName": "Town Square" },
+      { "name": "Rajiv", "count": 1, "proseIdentity": "Rajiv Patel. Cafe regular and software engineer. Introverted, quietly reliable.", "initialGoal": "Get coffee and code.", "initialLocationName": "Hobbs Cafe" },
+      { "name": "Giorgio", "count": 1, "proseIdentity": "Giorgio Rossi. Italian teacher at the local college. Effusive, romantic, lives for occasions.", "initialGoal": "Plan an Italian club meeting.", "initialLocationName": "Lecture Hall" },
+      { "name": "Tamara", "count": 1, "proseIdentity": "Tamara Taylor. Personal trainer. Direct, energetic, loves matchmaking.", "initialGoal": "Train her morning client.", "initialLocationName": "Gym" },
+      { "name": "Ryan", "count": 1, "proseIdentity": "Ryan Park. Aspiring novelist. Anxious, witty, drinks too much coffee.", "initialGoal": "Finish chapter four.", "initialLocationName": "Hobbs Cafe" },
+      { "name": "Nina", "count": 1, "proseIdentity": "Nina Hoffman. Florist. Cheerful, gossipy, knows what every couple in town is up to via flower deliveries.", "initialGoal": "Stock up for Valentine's Day.", "initialLocationName": "Town Square" },
+      { "name": "Daniel", "count": 1, "proseIdentity": "Daniel Brooks. Medical resident. Earnest, exhausted, kind. Childhood friends with Klaus.", "initialGoal": "Get to the hospital.", "initialLocationName": "Lecture Hall" },
+      { "name": "Aisha", "count": 1, "proseIdentity": "Aisha Khan. High-school teacher. Patient, principled, beloved by students.", "initialGoal": "Plan tomorrow's lessons.", "initialLocationName": "Lecture Hall" },
+      { "name": "Bob", "count": 1, "proseIdentity": "Bob Henderson. Retired postman. Talks to everyone, knows every house in town. The unofficial mayor.", "initialGoal": "Walk the square and chat.", "initialLocationName": "Town Square" },
+      { "name": "Saoirse", "count": 1, "proseIdentity": "Saoirse Murphy. Coffee-shop barista at Hobbs. Friendly, alert, knows what every regular orders.", "initialGoal": "Open Hobbs and prep the morning bar.", "initialLocationName": "Hobbs Cafe" }
+    ]
+  },
+  "world": {
+    "name": "Smallville",
+    "width": 24,
+    "height": 16,
+    "locations": [
+      { "name": "Hobbs Cafe", "kind": "area", "x": 6, "y": 6, "capacity": 12, "affordances": ["sit", "talk", "eat", "drink"] },
+      { "name": "Town Square", "kind": "area", "x": 12, "y": 8, "capacity": 30, "affordances": ["walk", "talk", "meet"] },
+      { "name": "Park", "kind": "area", "x": 18, "y": 4, "capacity": 20, "affordances": ["sit", "walk", "read"] },
+      { "name": "Dorm", "kind": "area", "x": 4, "y": 12, "capacity": 10, "affordances": ["sleep", "study", "talk"] },
+      { "name": "Lecture Hall", "kind": "area", "x": 14, "y": 14, "capacity": 40, "affordances": ["lecture", "study"] },
+      { "name": "Gym", "kind": "area", "x": 20, "y": 12, "capacity": 15, "affordances": ["exercise", "stretch"] }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Isabella announces the Valentine's party",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 12 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "Isabella mentioned a small Valentine's Day gathering at Hobbs Cafe at 7pm — invites are open.",
+          "fraction": 0.4
+        }
+      }
+    },
+    {
+      "name": "Word travels by tick 30",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 30 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "I heard from someone in the square: Isabella's hosting Valentine's Day drinks at Hobbs.",
+          "fraction": 0.6
+        }
+      }
+    },
+    {
+      "name": "Day-of buzz",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 70 },
+      "effect": {
+        "kind": "mutate_ambient",
+        "payload": { "topic": "Valentine's at Hobbs", "delta": 0.5 }
+      }
+    },
+    {
+      "name": "Party at Hobbs",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 80 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "It's 7pm. Isabella's party at Hobbs Cafe is starting.",
+          "fraction": 1
+        }
+      }
+    }
+  ],
+  "scenario": {
+    "totalTicks": 100,
+    "fidelity": "balanced",
+    "defaultSeed": 42,
+    "costCapUsd": 5
+  },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Mentions of \"Valentine\" per tick", "config": { "metric": "valentine_mentions" } },
+      { "kind": "network", "title": "Relationship graph at run end" },
+      { "kind": "distribution", "title": "Memory importance distribution per agent" },
+      { "kind": "narrative", "title": "Tick-by-tick narration" }
+    ]
+  },
+  "readmeMd": "# Smallville\n\n25 agents authored from Park et al. 2023. Isabella plans a Valentine's Day party at Hobbs Cafe. The rules inject observations at ticks 12, 30, 70, and 80 to seed the cascade.\n\n**What to try:** disable the reflection threshold (set to 9999) and re-run — the cascade dies."
+}

@@ -1,0 +1,46 @@
+{
+  "slug": "vaccination",
+  "category": "Public health",
+  "title": "Vaccination uptake",
+  "description": "200 agents (Pro / Hesitant / Skeptic). PSA at tick 30, peer-pressure via relationships. Track uptake fraction.",
+  "attribution": "Inspired by AgentSociety hurricane / public-health behavioral templates.",
+  "population": {
+    "classes": [
+      { "name": "Pro", "count": 80, "proseIdentity": "A pro-vaccine resident: trusts public health, generally on schedule.", "initialBeliefs": { "vax": 0.7 }, "initialLocationName": "Town" },
+      { "name": "Hesitant", "count": 80, "proseIdentity": "A hesitant resident: open to vaccines but waits for more evidence; influenced by friends.", "initialBeliefs": { "vax": 0.0 }, "initialLocationName": "Town" },
+      { "name": "Skeptic", "count": 40, "proseIdentity": "A skeptical resident: distrustful of public-health messaging; will only act under significant social pressure.", "initialBeliefs": { "vax": -0.5 }, "initialLocationName": "Town" }
+    ]
+  },
+  "world": {
+    "name": "Town",
+    "width": 20,
+    "height": 20,
+    "locations": [
+      { "name": "Town", "kind": "area", "x": 10, "y": 10, "capacity": 250 },
+      { "name": "Clinic", "kind": "area", "x": 5, "y": 5, "capacity": 50 },
+      { "name": "School", "kind": "area", "x": 15, "y": 5, "capacity": 100 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Public PSA",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 30 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "The clinic is offering free vaccines this week. The mayor recommends scheduling an appointment.",
+          "fraction": 0.9
+        }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 80, "fidelity": "cheap", "defaultSeed": 7, "costCapUsd": 3 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Uptake fraction over time" },
+      { "kind": "distribution", "title": "Belief distribution by class" }
+    ]
+  },
+  "readmeMd": "# Vaccination uptake\n\nThree-class population, peer-pressure through co-location and conversation. PSA at tick 30."
+}

@@ -1,0 +1,63 @@
+{
+  "slug": "deliberation",
+  "category": "Group decision",
+  "title": "Citizens' assembly (12)",
+  "description": "12-agent deliberation. Three phases: round-robin opinion, group discussion, vote at tick 50.",
+  "population": {
+    "classes": [
+      {
+        "name": "Citizen",
+        "count": 12,
+        "proseIdentity": "A randomly-selected citizen invited to deliberate on whether the city should fund a controversial new bus line. Initial views vary; willing to update on persuasive arguments.",
+        "initialBeliefs": { "support_bus_line": 0 },
+        "initialLocationName": "Assembly hall"
+      }
+    ]
+  },
+  "world": {
+    "name": "Assembly",
+    "width": 12,
+    "height": 8,
+    "locations": [
+      { "name": "Assembly hall", "kind": "area", "x": 6, "y": 4, "capacity": 20 },
+      { "name": "Lobby", "kind": "area", "x": 2, "y": 4, "capacity": 10 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Round-robin starts",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 5 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "The chair calls round-robin opinions on the proposed bus line.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Discussion opens",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 25 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "Open floor: the chair invites discussion and questions on the bus line.", "fraction": 1 }
+      }
+    },
+    {
+      "name": "Vote called",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 50 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": { "text": "The chair calls the vote: yes or no on funding the bus line.", "fraction": 1 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 60, "fidelity": "balanced", "defaultSeed": 23, "costCapUsd": 2 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Per-agent support over time" },
+      { "kind": "distribution", "title": "Final vote distribution" }
+    ]
+  },
+  "readmeMd": "# Deliberation\n\n12-agent deliberation with three explicit phases. Vote tally is recorded in ambient state."
+}

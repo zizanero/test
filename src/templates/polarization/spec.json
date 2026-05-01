@@ -1,0 +1,72 @@
+{
+  "slug": "polarization",
+  "category": "Information & opinion dynamics",
+  "title": "Polarization on a stochastic-block network",
+  "description": "100 agents in two communities with weak inter-edges. A polarizing news article is injected to community A at tick 50; track bimodality.",
+  "attribution": "Inspired by 2024 stochastic-block polarization studies on social networks.",
+  "population": {
+    "classes": [
+      {
+        "name": "Community A",
+        "count": 50,
+        "proseIdentity": "A resident of community A. Generally trusts mainstream institutions and has moderate-left priors on policy.",
+        "modelTier": "routine",
+        "initialBeliefs": { "policy_x": 0.2 },
+        "initialLocationName": "Plaza A"
+      },
+      {
+        "name": "Community B",
+        "count": 50,
+        "proseIdentity": "A resident of community B. Skeptical of institutions, has moderate-right priors, values local autonomy.",
+        "modelTier": "routine",
+        "initialBeliefs": { "policy_x": -0.2 },
+        "initialLocationName": "Plaza B"
+      }
+    ]
+  },
+  "world": {
+    "name": "Twin plazas",
+    "width": 30,
+    "height": 12,
+    "locations": [
+      { "name": "Plaza A", "kind": "area", "x": 6, "y": 6, "capacity": 60 },
+      { "name": "Plaza B", "kind": "area", "x": 24, "y": 6, "capacity": 60 },
+      { "name": "Bridge", "kind": "area", "x": 15, "y": 6, "capacity": 10 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Polarizing news to A",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 50 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "Breaking: a study claims policy X causes serious harm to families. Many in A are alarmed.",
+          "fraction": 0.8
+        }
+      }
+    },
+    {
+      "name": "Counter-narrative leaks to B",
+      "triggerKind": "tick",
+      "triggerSpec": { "atTick": 60 },
+      "effect": {
+        "kind": "inject_observation",
+        "payload": {
+          "text": "B-leaning sources are saying A is overreacting to a flawed study.",
+          "fraction": 0.7
+        }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 120, "fidelity": "cheap", "defaultSeed": 1, "costCapUsd": 3 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Bimodality coefficient over time" },
+      { "kind": "distribution", "title": "Opinion distribution at end" },
+      { "kind": "network", "title": "Community structure" }
+    ]
+  },
+  "readmeMd": "# Polarization\n\nTwo communities loosely connected via a Bridge. Watch the bimodality emerge after the news injection."
+}

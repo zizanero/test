@@ -1,0 +1,40 @@
+{
+  "slug": "market",
+  "category": "Markets",
+  "title": "Double-auction market",
+  "description": "60 agents (40 buyers, 20 sellers). The GM clears a discrete double auction each tick.",
+  "population": {
+    "classes": [
+      { "name": "Buyer", "count": 40, "proseIdentity": "A buyer with a private valuation for a single unit. Wants to buy below valuation; behaves rationally with mild noise.", "initialBeliefs": { "willingness_to_pay": 0.6 }, "initialLocationName": "Market floor" },
+      { "name": "Seller", "count": 20, "proseIdentity": "A seller with a private cost for a single unit. Wants to sell above cost; mildly noisy.", "initialBeliefs": { "ask_floor": 0.4 }, "initialLocationName": "Market floor" }
+    ]
+  },
+  "world": {
+    "name": "Market",
+    "width": 16,
+    "height": 12,
+    "locations": [
+      { "name": "Market floor", "kind": "area", "x": 8, "y": 6, "capacity": 70 },
+      { "name": "Pit", "kind": "area", "x": 12, "y": 8, "capacity": 30 }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Daily clearing nudge",
+      "triggerKind": "tick",
+      "triggerSpec": { "everyN": 5 },
+      "effect": {
+        "kind": "mutate_ambient",
+        "payload": { "topic": "market_close", "delta": 0.2 }
+      }
+    }
+  ],
+  "scenario": { "totalTicks": 50, "fidelity": "cheap", "defaultSeed": 13, "costCapUsd": 2 },
+  "dashboard": {
+    "blocks": [
+      { "kind": "timeseries", "title": "Clearing price over time" },
+      { "kind": "distribution", "title": "Buyer/seller surplus" }
+    ]
+  },
+  "readmeMd": "# Double-auction market\n\nDiscrete clearing every five ticks. The GM does pricing arbitration in this MVP."
+}
